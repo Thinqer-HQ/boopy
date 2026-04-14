@@ -1,6 +1,17 @@
 -- Enable extensions
 create extension if not exists "pgcrypto";
 
+-- Utility: keep updated_at correct
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 -- Enums
 create type public.subscription_status as enum ('active', 'paused', 'cancelled');
 create type public.subscription_cadence as enum ('monthly', 'yearly', 'custom');
@@ -16,6 +27,11 @@ create table public.workspaces (
   updated_at timestamptz not null default now()
 );
 
+create trigger trg_workspaces_set_updated_at
+before update on public.workspaces
+for each row
+execute function public.set_updated_at();
+
 -- Clients
 create table public.clients (
   id uuid primary key default gen_random_uuid(),
@@ -25,6 +41,13 @@ create table public.clients (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index idx_clients_workspace_id on public.clients (workspace_id);
+
+create trigger trg_clients_set_updated_at
+before update on public.clients
+for each row
+execute function public.set_updated_at();
 
 -- Subscriptions
 create table public.subscriptions (
@@ -39,8 +62,19 @@ create table public.subscriptions (
   category text,
   notes text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint subscriptions_amount_nonnegative check (amount >= 0),
+  constraint subscriptions_currency_is_uppercase_code check (
+    char_length(currency) >= 3 and upper(currency) = currency
+  )
 );
+
+create index idx_subscriptions_client_id on public.subscriptions (client_id);
+
+create trigger trg_subscriptions_set_updated_at
+before update on public.subscriptions
+for each row
+execute function public.set_updated_at();
 
 -- Notification preferences (workspace-level)
 create table public.notification_prefs (
@@ -49,8 +83,19 @@ create table public.notification_prefs (
   email_enabled boolean not null default true,
   push_enabled boolean not null default false,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint notification_prefs_lead_times_positive check (
+    not exists (
+      select 1 from unnest(lead_times_days) as d
+      where d <= 0
+    )
+  )
 );
+
+create trigger trg_notification_prefs_set_updated_at
+before update on public.notification_prefs
+for each row
+execute function public.set_updated_at();
 
 -- Push subscriptions (per user+workspace)
 create table public.push_subscriptions (
@@ -63,6 +108,14 @@ create table public.push_subscriptions (
   unique (workspace_id, user_id)
 );
 
+create index idx_push_subscriptions_workspace_id on public.push_subscriptions (workspace_id);
+create index idx_push_subscriptions_user_id on public.push_subscriptions (user_id);
+
+create trigger trg_push_subscriptions_set_updated_at
+before update on public.push_subscriptions
+for each row
+execute function public.set_updated_at();
+
 -- Notification jobs for idempotency + auditability
 create table public.notification_jobs (
   id uuid primary key default gen_random_uuid(),
@@ -72,14 +125,24 @@ create table public.notification_jobs (
   lead_time_days int not null,
   renewal_date date not null,
   scheduled_for timestamptz not null,
-  idempotency_key text not null unique,
+  idempotency_key text not null,
   status public.notification_job_status not null default 'pending',
   attempt_count int not null default 0,
   sent_at timestamptz,
   error text,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint notification_jobs_lead_time_positive check (lead_time_days > 0),
+  constraint notification_jobs_workspace_idempotency_unique unique (workspace_id, idempotency_key)
 );
+
+create index idx_notification_jobs_workspace_id on public.notification_jobs (workspace_id);
+create index idx_notification_jobs_subscription_id on public.notification_jobs (subscription_id);
+
+create trigger trg_notification_jobs_set_updated_at
+before update on public.notification_jobs
+for each row
+execute function public.set_updated_at();
 
 -- Audit events
 create table public.audit_events (
@@ -92,6 +155,8 @@ create table public.audit_events (
   metadata jsonb,
   created_at timestamptz not null default now()
 );
+
+create index idx_audit_events_workspace_id on public.audit_events (workspace_id);
 
 -- RLS
 alter table public.workspaces enable row level security;
