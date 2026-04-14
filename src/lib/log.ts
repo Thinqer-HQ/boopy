@@ -13,8 +13,26 @@ const levelPriority: Record<LogLevel, number> = {
 
 const defaultLevel: LogLevel = isProduction ? "info" : "debug";
 
-const redactKeyPattern =
-  /(^|_)(password|pass|secret|token|api[_-]?key|key|authorization|cookie|session)(_|$)/i;
+const sensitiveKeyTokens = [
+  "password",
+  "pass",
+  "secret",
+  "token",
+  "apikey",
+  "authorization",
+  "cookie",
+  "setcookie",
+  "session",
+] as const;
+
+function normalizeKey(key: string): string {
+  return key.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = normalizeKey(key);
+  return sensitiveKeyTokens.some((token) => normalized.includes(token));
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null) return false;
@@ -32,7 +50,7 @@ function redactValue(value: unknown, depth: number): unknown {
   if (isPlainObject(value)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      out[k] = redactKeyPattern.test(k) ? "[REDACTED]" : redactValue(v, depth - 1);
+      out[k] = isSensitiveKey(k) ? "[REDACTED]" : redactValue(v, depth - 1);
     }
     return out;
   }
