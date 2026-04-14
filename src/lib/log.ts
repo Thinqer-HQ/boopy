@@ -19,6 +19,10 @@ const sensitiveKeyTokens = [
   "secret",
   "token",
   "apikey",
+  "privatekey",
+  "secretkey",
+  "servicekey",
+  "rolekey",
   "authorization",
   "cookie",
   "setcookie",
@@ -31,7 +35,15 @@ function normalizeKey(key: string): string {
 
 function isSensitiveKey(key: string): boolean {
   const normalized = normalizeKey(key);
-  return sensitiveKeyTokens.some((token) => normalized.includes(token));
+  if (sensitiveKeyTokens.some((token) => normalized.includes(token))) return true;
+
+  // Catch common *KEY patterns (e.g., STRIPE_SECRET_KEY, SUPABASE_SERVICE_ROLE_KEY)
+  // while avoiding blanket redaction for arbitrary words containing "key".
+  if (/(^|[^a-z0-9])key($|[^a-z0-9])/i.test(key)) return true; // snake/kebab separators
+  if (/(Key)$/.test(key)) return true; // camelCase / PascalCase suffix
+  if (normalized.endsWith("key") && normalized.length > 3) return true; // fallback
+
+  return false;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
