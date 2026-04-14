@@ -1,0 +1,1 @@
+-- v1: seed is intentionally minimal (used for local dev later)
