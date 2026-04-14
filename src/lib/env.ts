@@ -2,7 +2,9 @@ import "server-only";
 
 import { z } from "zod";
 
-const strictEnv = process.env.VERCEL_ENV === "production" || process.env.ENV_STRICT === "true";
+const strictEnv =
+  process.env.ENV_STRICT === "true" ||
+  (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== "preview");
 
 const optionalNonEmpty = z.string().trim().min(1).optional();
 const requiredNonEmptyInStrict = strictEnv ? z.string().trim().min(1) : optionalNonEmpty;
