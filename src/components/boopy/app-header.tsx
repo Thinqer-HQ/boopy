@@ -2,7 +2,7 @@
 
 import { Bell, ChevronDown, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,6 +26,7 @@ function initials(email: string | undefined) {
 
 export function AppHeader({ className }: { className?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [email, setEmail] = useState<string | undefined>();
 
   useEffect(() => {
@@ -61,6 +62,27 @@ export function AppHeader({ className }: { className?: string }) {
         <span className="text-muted-foreground hidden text-xs sm:inline">
           Subscription reminders
         </span>
+        <nav className="ml-2 hidden items-center gap-1 sm:flex">
+          <Link
+            href="/"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/" && "bg-muted text-foreground"
+            )}
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/clients"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              (pathname === "/clients" || pathname.startsWith("/clients/")) &&
+                "bg-muted text-foreground"
+            )}
+          >
+            Clients
+          </Link>
+        </nav>
       </div>
 
       <div className="flex items-center gap-2">
