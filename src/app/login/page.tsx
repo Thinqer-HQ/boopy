@@ -18,7 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { supabaseBrowser } from "@/lib/supabase/browser";
+import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -32,7 +33,14 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const supabase = supabaseBrowser();
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setLoading(false);
+      setError(
+        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local."
+      );
+      return;
+    }
     const { data, error: err } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -55,7 +63,14 @@ export default function LoginPage() {
   async function signUp() {
     setError(null);
     setLoading(true);
-    const supabase = supabaseBrowser();
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setLoading(false);
+      setError(
+        "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local."
+      );
+      return;
+    }
     const { data, error: err } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (err) {
@@ -72,6 +87,10 @@ export default function LoginPage() {
     } else {
       setError("Check your email to confirm your account, then sign in.");
     }
+  }
+
+  if (!isSupabaseBrowserConfigured()) {
+    return <MissingSupabaseConfig />;
   }
 
   return (

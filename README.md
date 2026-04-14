@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Boopy — local env
+
+Copy `.env.example` to `.env.local` and set at least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Without them, the app still runs in dev and shows a setup screen instead of crashing.
+
+If `npm run dev` says **Another next dev server is already running**, stop the other process (or close the other terminal) or delete `.next/dev/lock` only after you are sure no dev server is using this folder.
+
 ## Getting Started
 
 First, run the development server:

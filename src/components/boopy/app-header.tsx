@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabaseBrowser } from "@/lib/supabase/browser";
+import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
 function initials(email: string | undefined) {
@@ -29,14 +29,16 @@ export function AppHeader({ className }: { className?: string }) {
   const [email, setEmail] = useState<string | undefined>();
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
     void supabase.auth.getUser().then(({ data }) => {
       setEmail(data.user?.email ?? undefined);
     });
   }, []);
 
   async function signOut() {
-    const supabase = supabaseBrowser();
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
     await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();

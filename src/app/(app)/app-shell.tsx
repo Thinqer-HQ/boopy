@@ -4,17 +4,26 @@ import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { AppHeader } from "@/components/boopy/app-header";
+import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabaseBrowser } from "@/lib/supabase/browser";
+import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const [missingSupabase] = useState(() => !isSupabaseBrowserConfigured());
   const [ready, setReady] = useState(false);
   const bootstrapped = useRef(false);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
+    if (missingSupabase) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      return;
+    }
 
     void (async () => {
       const {
@@ -40,7 +49,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       setReady(true);
     })();
-  }, [router]);
+  }, [missingSupabase, router]);
+
+  if (missingSupabase) {
+    return <MissingSupabaseConfig />;
+  }
 
   if (!ready) {
     return (
