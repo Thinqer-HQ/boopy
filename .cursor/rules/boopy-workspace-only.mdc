@@ -1,0 +1,23 @@
+---
+description: Restrict all edits and commands to the Boopy project directory only
+alwaysApply: true
+---
+
+# Boopy-only workspace
+
+## Scope
+
+- **All file reads, writes, patches, deletes, and searches** must stay under the Boopy project root: the directory named `boopy` that contains this repo (e.g. `D:\Nicole\Dev\boopy`), including paths inside it such as `.worktrees/**` used for git worktrees.
+- **Shell / terminal**: `cd`, scripts, and long-running processes must use a working directory **inside** that same Boopy root (or a worktree path under `boopy\.worktrees\`).
+
+## Do not
+
+- Edit, create, or delete files **outside** the Boopy root (e.g. do not change `C:\Users\...\.cursor\`, other repos under `Nicole\Dev`, global git config, or system paths) unless the user explicitly asks to change something outside Boopy for Boopy-related setup **and** names that path.
+
+## If the IDE workspace root is wider than Boopy
+
+- When the workspace is `Nicole\Dev` (parent of `boopy`), still **only** touch paths under `boopy/` (or `boopy\.worktrees\`).
+
+## MCP and uploads
+
+- Prefer reading user-provided docs from paths **under Boopy** when copied there; do not assume permission to modify arbitrary paths outside Boopy.
