@@ -6,12 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "next lint",
     "format": "prettier . --write",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "e2e": "playwright test",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -20,7 +17,7 @@
     ]
   },
   "dependencies": {
-    "next": "16.2.3",
+    "next": "^15.5.15",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -30,7 +27,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.3",
+    "eslint-config-next": "^15.5.15",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
