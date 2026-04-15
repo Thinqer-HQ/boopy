@@ -4,6 +4,18 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Copy `.env.example` to `.env.local` and set at least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Without them, the app still runs in dev and shows a setup screen instead of crashing.
 
+To enable reminder dispatch:
+
+- Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET`.
+- Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` for email sends.
+- Cron jobs hit `GET /api/cron` (scheduled in `vercel.json`) and authenticate with `CRON_SECRET`.
+
+To enable Stripe billing:
+
+- Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `STRIPE_PRICE_PRO_MONTHLY`.
+- `POST /api/stripe/checkout` creates checkout sessions for the current workspace owner.
+- `POST /api/stripe/webhook` upserts `workspace_billing` and updates plan state from Stripe events.
+
 If `npm run dev` says **Another next dev server is already running**, stop the other process (or close the other terminal) or delete `.next/dev/lock` only after you are sure no dev server is using this folder.
 
 ## Getting Started

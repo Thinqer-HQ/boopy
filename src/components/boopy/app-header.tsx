@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ChevronDown, LogOut, Settings } from "lucide-react";
+import { Bell, ChevronDown, CreditCard, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -87,11 +87,12 @@ export function AppHeader({ className }: { className?: string }) {
 
       <div className="flex items-center gap-2">
         <Link
-          href="/"
+          href="/settings/notifications"
           aria-label="Notifications"
           className={cn(
             buttonVariants({ variant: "ghost", size: "icon" }),
-            "text-muted-foreground"
+            "text-muted-foreground",
+            pathname.startsWith("/settings/notifications") && "bg-muted text-foreground"
           )}
         >
           <Bell className="size-4" />
@@ -120,9 +121,23 @@ export function AppHeader({ className }: { className?: string }) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled className="gap-2">
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => {
+                router.push("/settings/notifications");
+              }}
+            >
               <Settings className="size-4" />
-              Settings
+              Notification settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => {
+                router.push("/settings/billing");
+              }}
+            >
+              <CreditCard className="size-4" />
+              Billing
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

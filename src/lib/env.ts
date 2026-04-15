@@ -17,6 +17,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: strictEnv
     ? z.string().url()
     : z.string().url().default("http://localhost:3000"),
+  CRON_SECRET: requiredNonEmptyInStrict,
 
   // Supabase
   NEXT_PUBLIC_SUPABASE_URL: requiredUrlInStrict,
@@ -37,6 +38,7 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: requiredNonEmptyInStrict,
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: requiredNonEmptyInStrict,
   STRIPE_WEBHOOK_SECRET: requiredNonEmptyInStrict,
+  STRIPE_PRICE_PRO_MONTHLY: requiredNonEmptyInStrict,
 
   // PostHog
   NEXT_PUBLIC_POSTHOG_KEY: requiredNonEmptyInStrict,

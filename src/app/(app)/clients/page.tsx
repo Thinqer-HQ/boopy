@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
+import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
+import { canCreateClient, getPlanCapabilities } from "@/lib/billing/plan";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +51,7 @@ type ClientRow = {
 export default function ClientsPage() {
   const router = useRouter();
   const { state, reload } = usePrimaryWorkspace();
+  const billing = useWorkspaceBilling(state.status === "ready" ? state.workspaceId : null);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [listError, setListError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -86,6 +89,11 @@ export default function ClientsPage() {
 
   async function handleAdd() {
     if (state.status !== "ready" || !newName.trim()) return;
+    if (!canCreateClient(billing.plan, clients.length)) {
+      setListError("Client limit reached on current plan. Upgrade to Pro to add more.");
+      setAddOpen(false);
+      return;
+    }
     setSaving(true);
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -178,6 +186,9 @@ export default function ClientsPage() {
     );
   }
 
+  const clientCapabilities = getPlanCapabilities(billing.plan);
+  const clientLimitReached = !canCreateClient(billing.plan, clients.length);
+
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -193,10 +204,26 @@ export default function ClientsPage() {
         </Button>
       </div>
 
+      <p className="text-muted-foreground text-xs">
+        Plan: <span className="font-medium uppercase">{billing.plan}</span> • {clients.length}/
+        {clientCapabilities.maxClients >= 100000 ? "Unlimited" : clientCapabilities.maxClients}{" "}
+        clients
+      </p>
+
       {listError ? (
         <Alert variant="destructive">
           <AlertTitle>Error</AlertTitle>
           <AlertDescription>{listError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {clientLimitReached ? (
+        <Alert>
+          <AlertTitle>Client limit reached</AlertTitle>
+          <AlertDescription>
+            Upgrade your plan in <Link href="/settings/billing">billing settings</Link> to add more
+            clients.
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -312,7 +339,10 @@ export default function ClientsPage() {
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={saving || !newName.trim()} onClick={() => void handleAdd()}>
+            <Button
+              disabled={saving || !newName.trim() || clientLimitReached}
+              onClick={() => void handleAdd()}
+            >
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>

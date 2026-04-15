@@ -34,6 +34,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
+import { canCreateSubscription, getPlanCapabilities } from "@/lib/billing/plan";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +55,7 @@ type SubscriptionRow = {
   notes: string | null;
 };
 
-type ClientRow = { id: string; name: string };
+type ClientRow = { id: string; name: string; workspace_id: string };
 
 export default function ClientDetailPage() {
   const params = useParams();
@@ -77,6 +79,7 @@ export default function ClientDetailPage() {
 
   const [editRow, setEditRow] = useState<SubscriptionRow | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const billing = useWorkspaceBilling(client?.workspace_id ?? null);
 
   const load = useCallback(async () => {
     if (!isSupabaseBrowserConfigured() || !clientId) {
@@ -92,7 +95,7 @@ export default function ClientDetailPage() {
     setLoading(true);
     const { data: c, error: ce } = await supabase
       .from("clients")
-      .select("id, name")
+      .select("id, name, workspace_id")
       .eq("id", clientId)
       .maybeSingle();
     if (ce || !c) {
@@ -151,6 +154,11 @@ export default function ClientDetailPage() {
 
   async function insertSubscription() {
     if (!clientId || !vendor.trim() || !renewalDate) return;
+    if (!canCreateSubscription(billing.plan, subs.length)) {
+      setError("Subscription limit reached on current plan. Upgrade to Pro to add more.");
+      setAddOpen(false);
+      return;
+    }
     const amt = Number.parseFloat(amount);
     if (Number.isNaN(amt) || amt < 0) {
       setError("Amount must be a non-negative number.");
@@ -360,6 +368,13 @@ export default function ClientDetailPage() {
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
+      <p className="text-muted-foreground text-xs">
+        Plan: <span className="font-medium uppercase">{billing.plan}</span> • {subs.length}/
+        {getPlanCapabilities(billing.plan).maxSubscriptions >= 100000
+          ? "Unlimited"
+          : getPlanCapabilities(billing.plan).maxSubscriptions}{" "}
+        subscriptions
+      </p>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <Link
@@ -382,6 +397,16 @@ export default function ClientDetailPage() {
           Add subscription
         </Button>
       </div>
+
+      {!canCreateSubscription(billing.plan, subs.length) ? (
+        <Alert>
+          <AlertTitle>Subscription limit reached</AlertTitle>
+          <AlertDescription>
+            Upgrade your plan in <Link href="/settings/billing">billing settings</Link> to add more
+            subscriptions.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {error && client ? (
         <Alert variant="destructive">
@@ -471,7 +496,12 @@ export default function ClientDetailPage() {
               Cancel
             </Button>
             <Button
-              disabled={saving || !vendor.trim() || !renewalDate}
+              disabled={
+                saving ||
+                !vendor.trim() ||
+                !renewalDate ||
+                !canCreateSubscription(billing.plan, subs.length)
+              }
               onClick={() => void insertSubscription()}
             >
               {saving ? "Saving…" : "Save"}
