@@ -6,10 +6,16 @@ const strictEnv =
   process.env.ENV_STRICT === "true" ||
   (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== "preview");
 
-const optionalNonEmpty = z.string().trim().min(1).optional();
+const optionalNonEmpty = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().min(1).optional()
+);
 const requiredNonEmptyInStrict = strictEnv ? z.string().trim().min(1) : optionalNonEmpty;
 
-const optionalUrl = z.string().url().optional();
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().url().optional()
+);
 const requiredUrlInStrict = strictEnv ? z.string().url() : optionalUrl;
 
 const envSchema = z.object({

@@ -143,6 +143,15 @@ function authErrorResponse() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
+function isMissingTableError(message: string | undefined) {
+  if (!message) return false;
+  return (
+    message.includes("Could not find the table") ||
+    message.includes("schema cache") ||
+    message.includes("does not exist")
+  );
+}
+
 export async function GET(request: Request) {
   const env = getEnv();
   const suppliedSecret = request.headers.get("x-cron-secret");
@@ -164,6 +173,15 @@ export async function GET(request: Request) {
     .from("notification_prefs")
     .select("workspace_id, lead_times_days, email_enabled, push_enabled");
   if (prefsError) {
+    if (isMissingTableError(prefsError.message)) {
+      log.warn("cron_skipped_schema_not_ready", { runId, error: prefsError.message });
+      return NextResponse.json({
+        ok: true,
+        runId,
+        skipped: true,
+        reason: "Database schema not ready for notification tables",
+      });
+    }
     log.error("cron_load_prefs_failed", { runId, error: prefsError.message });
     return NextResponse.json({ error: "Failed to load notification prefs" }, { status: 500 });
   }
