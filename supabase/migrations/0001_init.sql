@@ -12,6 +12,18 @@ begin
 end;
 $$;
 
+-- Check helper for positive integer arrays.
+-- CHECK constraints cannot contain subqueries directly, so this wraps the
+-- unnest + aggregate validation in an immutable function.
+create or replace function public.int_array_all_positive(input_values int[])
+returns boolean
+language sql
+immutable
+as $$
+  select coalesce(bool_and(v > 0), true)
+  from unnest(input_values) as v;
+$$;
+
 -- Enums
 create type public.subscription_status as enum ('active', 'paused', 'cancelled');
 create type public.subscription_cadence as enum ('monthly', 'yearly', 'custom');
@@ -85,10 +97,7 @@ create table public.notification_prefs (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint notification_prefs_lead_times_positive check (
-    not exists (
-      select 1 from unnest(lead_times_days) as d
-      where d <= 0
-    )
+    public.int_array_all_positive(lead_times_days)
   )
 );
 
