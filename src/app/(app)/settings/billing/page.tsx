@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -68,6 +69,9 @@ export default function BillingSettingsPage() {
   }
 
   if (state.status !== "ready") {
+    if (state.status === "schema_not_ready") {
+      return <SchemaNotReady details={state.details} />;
+    }
     return <div className="text-muted-foreground p-8 text-sm">Loading billing…</div>;
   }
 

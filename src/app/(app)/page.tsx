@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -122,6 +123,10 @@ export default function AppHome() {
         </Button>
       </div>
     );
+  }
+
+  if (state.status === "schema_not_ready") {
+    return <SchemaNotReady details={state.details} />;
   }
 
   return (

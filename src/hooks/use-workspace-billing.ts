@@ -40,6 +40,13 @@ export function useWorkspaceBilling(workspaceId: string | null | undefined) {
         .maybeSingle();
 
       if (error) {
+        const missingTable =
+          error.message.includes("Could not find the table 'public.workspace_billing'") ||
+          (error.message.includes("workspace_billing") && error.message.includes("schema cache"));
+        if (missingTable) {
+          setState({ loading: false, plan: "free", status: "free", error: null });
+          return;
+        }
         setState({ loading: false, plan: "free", status: "free", error: error.message });
         return;
       }

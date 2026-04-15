@@ -8,8 +8,17 @@ export type WorkspaceState =
   | { status: "loading" }
   | { status: "not_configured" }
   | { status: "error"; message: string }
+  | { status: "schema_not_ready"; details: string }
   | { status: "ready"; workspaceId: string }
   | { status: "empty" };
+
+function isMissingWorkspaceTable(message: string | undefined) {
+  if (!message) return false;
+  return (
+    message.includes("Could not find the table 'public.workspaces'") ||
+    (message.includes("workspaces") && message.includes("schema cache"))
+  );
+}
 
 export function usePrimaryWorkspace() {
   const [state, setState] = useState<WorkspaceState>({ status: "loading" });
@@ -33,6 +42,10 @@ export function usePrimaryWorkspace() {
       .maybeSingle();
 
     if (error) {
+      if (isMissingWorkspaceTable(error.message)) {
+        setState({ status: "schema_not_ready", details: error.message });
+        return;
+      }
       setState({ status: "error", message: error.message });
       return;
     }

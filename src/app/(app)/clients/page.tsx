@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -170,6 +171,10 @@ export default function ClientsPage() {
         </Button>
       </div>
     );
+  }
+
+  if (state.status === "schema_not_ready") {
+    return <SchemaNotReady details={state.details} />;
   }
 
   if (state.status === "empty") {
