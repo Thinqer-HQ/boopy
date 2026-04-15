@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { log } from "@/lib/log";
 import { sendRenewalEmail } from "@/lib/notifications/email";
+import { sendPushReminder } from "@/lib/notifications/push";
 import { collectDueNotificationPlans } from "@/lib/notifications/scheduler";
 import { supabaseService } from "@/lib/supabase/server";
 
@@ -74,6 +75,63 @@ type PendingEmailJobRow = {
           | null;
       }>
     | null;
+};
+
+type PendingPushJobRow = {
+  id: string;
+  workspace_id: string;
+  lead_time_days: number;
+  renewal_date: string;
+  attempt_count: number;
+  subscriptions:
+    | {
+        vendor_name: string;
+        amount: number;
+        currency: string;
+        clients:
+          | {
+              name: string;
+              workspaces:
+                | { owner_user_id: string; name: string }
+                | Array<{ owner_user_id: string; name: string }>
+                | null;
+            }
+          | Array<{
+              name: string;
+              workspaces:
+                | { owner_user_id: string; name: string }
+                | Array<{ owner_user_id: string; name: string }>
+                | null;
+            }>
+          | null;
+      }
+    | Array<{
+        vendor_name: string;
+        amount: number;
+        currency: string;
+        clients:
+          | {
+              name: string;
+              workspaces:
+                | { owner_user_id: string; name: string }
+                | Array<{ owner_user_id: string; name: string }>
+                | null;
+            }
+          | Array<{
+              name: string;
+              workspaces:
+                | { owner_user_id: string; name: string }
+                | Array<{ owner_user_id: string; name: string }>
+                | null;
+            }>
+          | null;
+      }>
+    | null;
+};
+
+type PushSubscriptionRow = {
+  workspace_id: string;
+  subscription_json: PushSubscriptionJSON;
 };
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -255,11 +313,117 @@ export async function GET(request: Request) {
     }
   }
 
+  const { data: pendingPushJobs, error: pendingPushJobsError } = await supabase
+    .from("notification_jobs")
+    .select(
+      "id, workspace_id, lead_time_days, renewal_date, attempt_count, subscriptions!inner(vendor_name, amount, currency, clients!inner(name, workspaces!inner(owner_user_id, name)))"
+    )
+    .eq("channel", "push")
+    .eq("status", "pending")
+    .lte("scheduled_for", nowIso)
+    .limit(100);
+
+  if (pendingPushJobsError) {
+    log.error("cron_load_pending_push_jobs_failed", {
+      runId,
+      error: pendingPushJobsError.message,
+    });
+    return NextResponse.json({ error: "Failed to load pending push jobs" }, { status: 500 });
+  }
+
+  const workspaceIds = [
+    ...new Set(((pendingPushJobs ?? []) as PendingPushJobRow[]).map((job) => job.workspace_id)),
+  ];
+  const pushByWorkspaceId = new Map<string, PushSubscriptionJSON[]>();
+  if (workspaceIds.length > 0) {
+    const { data: pushRows, error: pushRowsError } = await supabase
+      .from("push_subscriptions")
+      .select("workspace_id, subscription_json")
+      .in("workspace_id", workspaceIds);
+
+    if (pushRowsError) {
+      log.error("cron_load_push_subscriptions_failed", { runId, error: pushRowsError.message });
+      return NextResponse.json({ error: "Failed to load push subscriptions" }, { status: 500 });
+    }
+
+    for (const row of (pushRows ?? []) as PushSubscriptionRow[]) {
+      const current = pushByWorkspaceId.get(row.workspace_id) ?? [];
+      current.push(row.subscription_json);
+      pushByWorkspaceId.set(row.workspace_id, current);
+    }
+  }
+
+  let pushesSent = 0;
+  let pushesFailed = 0;
+
+  for (const job of (pendingPushJobs ?? []) as PendingPushJobRow[]) {
+    try {
+      const subscription = first(job.subscriptions);
+      const client = first(subscription?.clients);
+      const workspace = first(client?.workspaces);
+      if (!subscription || !client || !workspace) {
+        throw new Error("Missing relational data for push job");
+      }
+
+      const subscriptionsForWorkspace = pushByWorkspaceId.get(job.workspace_id) ?? [];
+      if (subscriptionsForWorkspace.length === 0) {
+        throw new Error("No push subscriptions saved for workspace");
+      }
+
+      for (const pushSub of subscriptionsForWorkspace) {
+        await sendPushReminder({
+          subscription: pushSub,
+          workspaceName: workspace.name,
+          clientName: client.name,
+          vendorName: subscription.vendor_name,
+          amount: Number(subscription.amount ?? 0),
+          currency: subscription.currency,
+          renewalDate: job.renewal_date,
+          leadTimeDays: job.lead_time_days,
+        });
+      }
+
+      const { error: updateError } = await supabase
+        .from("notification_jobs")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          attempt_count: (job.attempt_count ?? 0) + 1,
+          error: null,
+        })
+        .eq("id", job.id);
+      if (updateError) throw new Error(updateError.message);
+
+      pushesSent += 1;
+    } catch (pushError) {
+      const message = pushError instanceof Error ? pushError.message : "Unknown push send failure";
+      const { error: failUpdateError } = await supabase
+        .from("notification_jobs")
+        .update({
+          status: "failed",
+          attempt_count: (job.attempt_count ?? 0) + 1,
+          error: message,
+        })
+        .eq("id", job.id);
+      if (failUpdateError) {
+        log.error("cron_mark_push_job_failed_update_failed", {
+          runId,
+          jobId: job.id,
+          updateError: failUpdateError.message,
+          originalError: message,
+        });
+      }
+      pushesFailed += 1;
+    }
+  }
+
   log.info("cron_run_finished", {
     runId,
     plansEvaluated: plans.length,
     emailsSent,
     emailsFailed,
+    pushesSent,
+    pushesFailed,
   });
 
   return NextResponse.json({
@@ -268,5 +432,7 @@ export async function GET(request: Request) {
     plansEvaluated: plans.length,
     emailsSent,
     emailsFailed,
+    pushesSent,
+    pushesFailed,
   });
 }

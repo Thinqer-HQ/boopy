@@ -18,14 +18,29 @@ function parseLeadTimes(raw: string): number[] {
     .sort((a, b) => b - a);
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const normalized = (base64String + padding).replaceAll("-", "+").replaceAll("_", "/");
+  const rawData = atob(normalized);
+  return Uint8Array.from(rawData, (char) => char.charCodeAt(0));
+}
+
 export default function NotificationSettingsPage() {
   const { state, reload } = usePrimaryWorkspace();
   const [leadTimesText, setLeadTimesText] = useState("7,3,1");
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushReady, setPushReady] = useState(false);
+  const [pushWorking, setPushWorking] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPushReady(
+      typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
+    );
+  }, []);
 
   useEffect(() => {
     async function loadSettings() {
@@ -89,6 +104,74 @@ export default function NotificationSettingsPage() {
 
     setLeadTimesText(leadTimes.join(","));
     setMessage("Notification settings saved.");
+  }
+
+  async function enablePushOnDevice() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey?.trim()) {
+      setError("NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing.");
+      return;
+    }
+    if (!pushReady) {
+      setError("Push is not supported in this browser.");
+      return;
+    }
+
+    setPushWorking(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("You are not signed in.");
+      }
+
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        throw new Error("Notification permission was not granted.");
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+
+      const response = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          workspaceId: state.workspaceId,
+          subscription: subscription.toJSON(),
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? "Failed to save push subscription.");
+      }
+
+      setMessage("Push notifications enabled on this device.");
+    } catch (pushError) {
+      setError(
+        pushError instanceof Error ? pushError.message : "Failed to enable push notifications."
+      );
+    } finally {
+      setPushWorking(false);
+    }
   }
 
   if (state.status === "not_configured") {
@@ -185,6 +268,20 @@ export default function NotificationSettingsPage() {
             />
             Push reminders (PWA)
           </label>
+
+          <Button
+            variant="outline"
+            disabled={pushWorking || !pushReady}
+            onClick={() => void enablePushOnDevice()}
+          >
+            {pushWorking ? "Enabling push…" : "Enable push on this device"}
+          </Button>
+          {!pushReady ? (
+            <p className="text-muted-foreground text-xs">
+              Push is unavailable in this browser/session. Use a supported browser with service
+              workers.
+            </p>
+          ) : null}
 
           <Button disabled={saving} onClick={() => void handleSave()}>
             {saving ? "Saving…" : "Save settings"}
