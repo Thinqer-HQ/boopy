@@ -24,12 +24,15 @@ Default local URL: `http://localhost:3001`
 - `NEXT_PUBLIC_DASHBOARD_URL` (e.g. `https://app.boopy.dev/login`)
 - `PAYLOAD_API_URL` (e.g. `https://your-payload-domain.com`)
 - `PAYLOAD_API_TOKEN` (optional, for protected globals endpoint)
+- `PAYLOAD_SECRET` (required when using embedded/local Payload in this app)
+- `DATABASE_URI` (e.g. `file:./apps/marketing/payload.db` for local SQLite)
 
 ## Content source (no-code)
 
 The homepage fetches `marketing-site` global from Payload:
 
 - `GET {PAYLOAD_API_URL}/api/globals/marketing-site`
+- if `PAYLOAD_API_URL` is not set, the app uses the embedded Payload instance directly via Local API
 
 If Payload is unreachable, the app falls back to local default content.
 
@@ -39,12 +42,21 @@ Yes. Payload is the primary no-code control layer.
 
 Recommended workflow:
 
-1. Open Payload admin and edit the `marketing-site` global.
+1. Open Payload admin at `/admin` and edit the `marketing-site` global.
 2. Update messaging, audience cards, value pillars, social proof, pricing, FAQs, and CTAs.
 3. Save and publish.
 4. Verify on the deployed marketing URL.
 
 This lets marketing modify positioning and launch copy without code changes.
+
+## Embedded Payload routes (Next.js)
+
+This app now includes full Payload + Next.js integration using route groups:
+
+- Admin UI: `/admin`
+- REST API: `/api/*`
+- GraphQL API: `/api/graphql`
+- GraphQL Playground: `/api/graphql-playground`
 
 ## Payload schema starter
 

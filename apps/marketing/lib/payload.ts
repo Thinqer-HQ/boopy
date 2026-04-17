@@ -1,3 +1,6 @@
+import config from "@payload-config";
+import { getPayload } from "payload";
+
 export type MarketingContent = {
   seo: {
     title: string;
@@ -251,115 +254,138 @@ function normalizeFeatureList(
   return normalized.length > 0 ? normalized : fallback;
 }
 
+function normalizeMarketingContent(data: PayloadGlobalResponse | undefined): MarketingContent {
+  if (!data) return fallbackContent;
+
+  return {
+    seo: {
+      title: data.seo?.title?.trim() || fallbackContent.seo.title,
+      description: data.seo?.description?.trim() || fallbackContent.seo.description,
+      imageUrl: data.seo?.imageUrl?.trim() || fallbackContent.seo.imageUrl,
+    },
+    brandStatement: data.brandStatement?.trim() || fallbackContent.brandStatement,
+    heroBadge: data.heroBadge?.trim() || fallbackContent.heroBadge,
+    heroTitle: data.heroTitle?.trim() || fallbackContent.heroTitle,
+    heroSubtitle: data.heroSubtitle?.trim() || fallbackContent.heroSubtitle,
+    primaryCta: {
+      label: data.primaryCta?.label?.trim() || fallbackContent.primaryCta.label,
+      url: data.primaryCta?.url?.trim() || fallbackContent.primaryCta.url,
+    },
+    secondaryCta: {
+      label: data.secondaryCta?.label?.trim() || fallbackContent.secondaryCta.label,
+      url: data.secondaryCta?.url?.trim() || fallbackContent.secondaryCta.url,
+    },
+    dashboardUrl: data.dashboardUrl?.trim() || fallbackContent.dashboardUrl,
+    socialProof:
+      data.socialProof
+        ?.map((item) => ({
+          value: item.value?.trim() || "",
+          label: item.label?.trim() || "",
+        }))
+        .filter((item) => item.value && item.label) || fallbackContent.socialProof,
+    audienceHeadline: data.audienceHeadline?.trim() || fallbackContent.audienceHeadline,
+    audiences:
+      data.audiences
+        ?.map((item) => ({
+          title: item.title?.trim() || "",
+          description: item.description?.trim() || "",
+        }))
+        .filter((item) => item.title && item.description) || fallbackContent.audiences,
+    valueHeadline: data.valueHeadline?.trim() || fallbackContent.valueHeadline,
+    valuePillars:
+      data.valuePillars
+        ?.map((item) => ({
+          title: item.title?.trim() || "",
+          description: item.description?.trim() || "",
+        }))
+        .filter((item) => item.title && item.description) || fallbackContent.valuePillars,
+    noCodeCms: {
+      headline: data.noCodeCms?.headline?.trim() || fallbackContent.noCodeCms.headline,
+      description: data.noCodeCms?.description?.trim() || fallbackContent.noCodeCms.description,
+      points: normalizeFeatureList(data.noCodeCms?.points, fallbackContent.noCodeCms.points),
+      ctaLabel: data.noCodeCms?.ctaLabel?.trim() || fallbackContent.noCodeCms.ctaLabel,
+      ctaUrl: data.noCodeCms?.ctaUrl?.trim() || fallbackContent.noCodeCms.ctaUrl,
+    },
+    features:
+      data.features
+        ?.map((feature) => ({
+          title: feature.title?.trim() || "",
+          description: feature.description?.trim() || "",
+        }))
+        .filter((feature) => feature.title && feature.description) || fallbackContent.features,
+    testimonials:
+      data.testimonials
+        ?.map((testimonial) => ({
+          quote: testimonial.quote?.trim() || "",
+          name: testimonial.name?.trim() || "",
+          role: testimonial.role?.trim() || "",
+        }))
+        .filter((testimonial) => testimonial.quote && testimonial.name) ||
+      fallbackContent.testimonials,
+    faqs:
+      data.faqs
+        ?.map((faq) => ({
+          question: faq.question?.trim() || "",
+          answer: faq.answer?.trim() || "",
+        }))
+        .filter((faq) => faq.question && faq.answer) || fallbackContent.faqs,
+    pricing: {
+      free: {
+        label: data.pricing?.free?.label?.trim() || fallbackContent.pricing.free.label,
+        price: data.pricing?.free?.price?.trim() || fallbackContent.pricing.free.price,
+        description:
+          data.pricing?.free?.description?.trim() || fallbackContent.pricing.free.description,
+        features: normalizeFeatureList(
+          data.pricing?.free?.features,
+          fallbackContent.pricing.free.features
+        ),
+        ctaLabel: data.pricing?.free?.ctaLabel?.trim() || fallbackContent.pricing.free.ctaLabel,
+      },
+      pro: {
+        label: data.pricing?.pro?.label?.trim() || fallbackContent.pricing.pro.label,
+        price: data.pricing?.pro?.price?.trim() || fallbackContent.pricing.pro.price,
+        description:
+          data.pricing?.pro?.description?.trim() || fallbackContent.pricing.pro.description,
+        features: normalizeFeatureList(
+          data.pricing?.pro?.features,
+          fallbackContent.pricing.pro.features
+        ),
+        ctaLabel: data.pricing?.pro?.ctaLabel?.trim() || fallbackContent.pricing.pro.ctaLabel,
+      },
+    },
+  };
+}
+
 export async function getMarketingContent(): Promise<MarketingContent> {
   const payloadUrl = process.env.PAYLOAD_API_URL?.trim();
   const payloadToken = process.env.PAYLOAD_API_TOKEN?.trim();
-  if (!payloadUrl) return fallbackContent;
+
+  if (payloadUrl) {
+    try {
+      const prefixedToken = payloadToken
+        ? /^(JWT|Bearer)\s/i.test(payloadToken)
+          ? payloadToken
+          : `Bearer ${payloadToken}`
+        : undefined;
+      const response = await fetch(`${payloadUrl.replace(/\/$/, "")}/api/globals/marketing-site`, {
+        headers: prefixedToken ? { Authorization: prefixedToken } : undefined,
+        cache: "no-store",
+      });
+      if (!response.ok) return fallbackContent;
+      const data = (await response.json()) as PayloadGlobalResponse;
+      return normalizeMarketingContent(data);
+    } catch {
+      return fallbackContent;
+    }
+  }
 
   try {
-    const response = await fetch(`${payloadUrl.replace(/\/$/, "")}/api/globals/marketing-site`, {
-      headers: payloadToken ? { Authorization: `JWT ${payloadToken}` } : undefined,
-      cache: "no-store",
-    });
-    if (!response.ok) return fallbackContent;
-    const data = (await response.json()) as PayloadGlobalResponse;
-    return {
-      seo: {
-        title: data.seo?.title?.trim() || fallbackContent.seo.title,
-        description: data.seo?.description?.trim() || fallbackContent.seo.description,
-        imageUrl: data.seo?.imageUrl?.trim() || fallbackContent.seo.imageUrl,
-      },
-      brandStatement: data.brandStatement?.trim() || fallbackContent.brandStatement,
-      heroBadge: data.heroBadge?.trim() || fallbackContent.heroBadge,
-      heroTitle: data.heroTitle?.trim() || fallbackContent.heroTitle,
-      heroSubtitle: data.heroSubtitle?.trim() || fallbackContent.heroSubtitle,
-      primaryCta: {
-        label: data.primaryCta?.label?.trim() || fallbackContent.primaryCta.label,
-        url: data.primaryCta?.url?.trim() || fallbackContent.primaryCta.url,
-      },
-      secondaryCta: {
-        label: data.secondaryCta?.label?.trim() || fallbackContent.secondaryCta.label,
-        url: data.secondaryCta?.url?.trim() || fallbackContent.secondaryCta.url,
-      },
-      dashboardUrl: data.dashboardUrl?.trim() || fallbackContent.dashboardUrl,
-      socialProof:
-        data.socialProof
-          ?.map((item) => ({
-            value: item.value?.trim() || "",
-            label: item.label?.trim() || "",
-          }))
-          .filter((item) => item.value && item.label) || fallbackContent.socialProof,
-      audienceHeadline: data.audienceHeadline?.trim() || fallbackContent.audienceHeadline,
-      audiences:
-        data.audiences
-          ?.map((item) => ({
-            title: item.title?.trim() || "",
-            description: item.description?.trim() || "",
-          }))
-          .filter((item) => item.title && item.description) || fallbackContent.audiences,
-      valueHeadline: data.valueHeadline?.trim() || fallbackContent.valueHeadline,
-      valuePillars:
-        data.valuePillars
-          ?.map((item) => ({
-            title: item.title?.trim() || "",
-            description: item.description?.trim() || "",
-          }))
-          .filter((item) => item.title && item.description) || fallbackContent.valuePillars,
-      noCodeCms: {
-        headline: data.noCodeCms?.headline?.trim() || fallbackContent.noCodeCms.headline,
-        description: data.noCodeCms?.description?.trim() || fallbackContent.noCodeCms.description,
-        points: normalizeFeatureList(data.noCodeCms?.points, fallbackContent.noCodeCms.points),
-        ctaLabel: data.noCodeCms?.ctaLabel?.trim() || fallbackContent.noCodeCms.ctaLabel,
-        ctaUrl: data.noCodeCms?.ctaUrl?.trim() || fallbackContent.noCodeCms.ctaUrl,
-      },
-      features:
-        data.features
-          ?.map((feature) => ({
-            title: feature.title?.trim() || "",
-            description: feature.description?.trim() || "",
-          }))
-          .filter((feature) => feature.title && feature.description) || fallbackContent.features,
-      testimonials:
-        data.testimonials
-          ?.map((testimonial) => ({
-            quote: testimonial.quote?.trim() || "",
-            name: testimonial.name?.trim() || "",
-            role: testimonial.role?.trim() || "",
-          }))
-          .filter((testimonial) => testimonial.quote && testimonial.name) ||
-        fallbackContent.testimonials,
-      faqs:
-        data.faqs
-          ?.map((faq) => ({
-            question: faq.question?.trim() || "",
-            answer: faq.answer?.trim() || "",
-          }))
-          .filter((faq) => faq.question && faq.answer) || fallbackContent.faqs,
-      pricing: {
-        free: {
-          label: data.pricing?.free?.label?.trim() || fallbackContent.pricing.free.label,
-          price: data.pricing?.free?.price?.trim() || fallbackContent.pricing.free.price,
-          description:
-            data.pricing?.free?.description?.trim() || fallbackContent.pricing.free.description,
-          features: normalizeFeatureList(
-            data.pricing?.free?.features,
-            fallbackContent.pricing.free.features
-          ),
-          ctaLabel: data.pricing?.free?.ctaLabel?.trim() || fallbackContent.pricing.free.ctaLabel,
-        },
-        pro: {
-          label: data.pricing?.pro?.label?.trim() || fallbackContent.pricing.pro.label,
-          price: data.pricing?.pro?.price?.trim() || fallbackContent.pricing.pro.price,
-          description:
-            data.pricing?.pro?.description?.trim() || fallbackContent.pricing.pro.description,
-          features: normalizeFeatureList(
-            data.pricing?.pro?.features,
-            fallbackContent.pricing.pro.features
-          ),
-          ctaLabel: data.pricing?.pro?.ctaLabel?.trim() || fallbackContent.pricing.pro.ctaLabel,
-        },
-      },
-    };
+    const payload = await getPayload({ config });
+    const data = (await payload.findGlobal({
+      slug: "marketing-site",
+      depth: 1,
+    })) as PayloadGlobalResponse;
+    return normalizeMarketingContent(data);
   } catch {
     return fallbackContent;
   }

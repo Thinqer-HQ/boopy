@@ -20,7 +20,8 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@payload-config": ["./payload.config.ts"]
     }
   },
   "include": [
@@ -30,5 +31,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "payload-schema/**"]
+  "exclude": ["node_modules"]
 }

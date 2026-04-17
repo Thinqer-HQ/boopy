@@ -6,14 +6,20 @@
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start --port 3001",
-    "lint": "eslint app lib next.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "lint": "eslint app lib payload-schema payload.config.ts next.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "payload": "payload"
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",
+    "@payloadcms/db-sqlite": "^3.83.0",
+    "@payloadcms/next": "^3.83.0",
+    "@payloadcms/richtext-lexical": "^3.83.0",
     "next": "16.2.3",
+    "payload": "^3.83.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/node": "^20",
