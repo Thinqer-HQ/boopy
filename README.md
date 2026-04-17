@@ -16,6 +16,38 @@ To enable Stripe billing:
 - `POST /api/stripe/checkout` creates checkout sessions for the current workspace owner.
 - `POST /api/stripe/webhook` upserts `workspace_billing` and updates plan state from Stripe events.
 
+To enable groups + documents + automation channels + calendar sync:
+
+- Run Supabase migrations in order through `supabase db push` (includes `0003_groups_migration.sql` to `0006_calendar_integrations.sql`).
+- Set Google OAuth env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
+- Configure Slack/Discord/webhook destinations in `Settings -> Notifications`.
+- Connect Google Calendar from `Settings -> Notifications` and run a manual re-sync when needed.
+
+## Monorepo apps
+
+- Dashboard app (core product): repository root (`src/app`)
+- Marketing app (separate deploy target): `apps/marketing`
+
+Run marketing app:
+
+- `npm run dev:marketing` (http://localhost:3001)
+- `npm run build:marketing`
+
+Marketing stack:
+
+- Landing template in `apps/marketing/app/page.tsx`
+- Puck visual editor in `apps/marketing/app/studio/page.tsx`
+- Payload headless content fetch in `apps/marketing/lib/payload.ts`
+  - configure `PAYLOAD_API_URL` (+ optional `PAYLOAD_API_TOKEN`)
+  - dashboard CTA driven by `NEXT_PUBLIC_DASHBOARD_URL`
+
+Quality and verification commands:
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `node scripts/qa/crawl-with-logs.mjs` (optionally set `CRAWL_EMAIL` and `CRAWL_PASSWORD` for authenticated crawl mode)
+
 If `npm run dev` says **Another next dev server is already running**, stop the other process (or close the other terminal) or delete `.next/dev/lock` only after you are sure no dev server is using this folder.
 
 ## Getting Started
