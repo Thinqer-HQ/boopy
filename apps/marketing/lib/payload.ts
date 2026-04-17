@@ -61,143 +61,118 @@ const fallbackContent: MarketingContent = {
   seo: {
     title: "Boopy - The Comprehensive Subscription Manager",
     description:
-      "Boopy helps anyone track subscriptions, renewal dates, and spending with one clean command center for personal, teams, agencies, and business use.",
+      "Finally, a subscription manager that works. Track renewals and spending in one simple place.",
     imageUrl: null,
   },
-  brandStatement: "One subscription manager for everyone.",
-  heroBadge: "Comprehensive subscription management",
-  heroTitle: "Track every recurring expense with clarity, control, and zero spreadsheet chaos.",
+  brandStatement: "For personal, teams, agencies, and businesses.",
+  heroBadge: "For everyone",
+  heroTitle: "Finally, a subscription manager that works.",
   heroSubtitle:
-    "Boopy is built for personal use, group use, agency operations, and business finance teams. Add subscriptions, monitor renewals, automate reminders, and understand spend across the whole stack.",
+    "See every subscription. Know what is due. Stop surprise charges. All in one clean dashboard.",
   primaryCta: {
     label: "Start free",
     url: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
   },
   secondaryCta: {
-    label: "See live demo",
+    label: "See pricing",
     url: `${(process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login").replace(/\/login$/, "")}/settings/billing`,
   },
   dashboardUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
   socialProof: [
-    { value: "Personal to Enterprise", label: "Use-case coverage" },
-    { value: "Multi-workspace", label: "Groups, clients, agencies" },
-    { value: "Alerts + Reports", label: "Actionable visibility" },
+    { value: "One place", label: "All subscriptions" },
+    { value: "No surprises", label: "Renewal reminders" },
+    { value: "Clear spend", label: "Know where money goes" },
   ],
-  audienceHeadline: "Built for every subscription operator",
+  audienceHeadline: "Made for real life and real teams",
   audiences: [
     {
-      title: "Personal users",
-      description:
-        "Track streaming, SaaS, utilities, and annual renewals in one place so nothing slips.",
+      title: "Personal",
+      description: "Track your own subscriptions and never forget a renewal date.",
     },
     {
-      title: "Families and groups",
-      description:
-        "Organize shared subscriptions per group with clearer ownership and predictable costs.",
+      title: "Groups",
+      description: "Keep shared subscriptions organized and easy to manage together.",
     },
     {
       title: "Agencies",
-      description:
-        "Manage internal tools and client subscriptions side-by-side with cleaner accountability.",
+      description: "Handle internal tools and client subscriptions in one workspace.",
     },
     {
       title: "Businesses",
-      description:
-        "Gain finance-ready renewal tracking and spend summaries across teams and workspaces.",
+      description: "See team spending clearly and stay ahead of every contract renewal.",
     },
   ],
-  valueHeadline: "Move from messy tracking to confident operations",
+  valueHeadline: "See everything. Miss nothing.",
   valuePillars: [
     {
-      title: "Comprehensive subscription records",
-      description:
-        "Keep each subscription's vendor, amount, cadence, currency, and renewal metadata in one normalized place.",
+      title: "Simple tracking",
+      description: "Add subscriptions once and find them fast when you need them.",
     },
     {
-      title: "Renewal calendar and proactive alerts",
-      description:
-        "Catch renewals before charges hit with reminders and calendar-first visibility across your stack.",
+      title: "Smart reminders",
+      description: "Get alerts before renewals so you can act on time.",
     },
     {
-      title: "Documents and reporting that scale",
-      description:
-        "Turn invoices and receipts into structured records and export clean reports for stakeholders.",
+      title: "Spend clarity",
+      description: "Understand what you pay, where it goes, and what is coming next.",
     },
   ],
   noCodeCms: {
-    headline: "No-code content editing for your marketing partner",
-    description:
-      "Use Payload as the content hub and edit this landing page without developer tickets. Update copy, proof, CTAs, FAQs, and pricing in minutes.",
-    points: [
-      "Payload global model controls all major landing sections",
-      "Safe fallback content keeps site live if CMS is unreachable",
-      "Visual studio route supports fast block experiments",
-    ],
+    headline: "Your marketing partner can edit this without code",
+    description: "Use Payload to update headlines, sections, CTAs, and pricing in minutes.",
+    points: ["Edit copy fast", "Publish changes quickly", "No developer ticket needed"],
     ctaLabel: "Open content studio",
     ctaUrl: "/studio",
   },
   features: [
     {
-      title: "Unified dashboard",
-      description:
-        "Stop jumping between docs and sheets. One surface for all subscription records and statuses.",
+      title: "Everything in one view",
+      description: "No more scattered notes, sheets, or missed details.",
     },
     {
-      title: "Renewal intelligence",
-      description:
-        "See upcoming renewals, avoid accidental charges, and schedule action before deadlines.",
+      title: "Never miss a renewal",
+      description: "Know what is due and when, before charges hit.",
     },
     {
-      title: "Operational reports",
-      description:
-        "Export clear summaries for personal budgeting, team planning, and business finance reviews.",
+      title: "Clear spending picture",
+      description: "Quickly understand your recurring costs.",
     },
   ],
   testimonials: [
     {
-      quote:
-        "Boopy replaced five disconnected tracking docs and instantly made renewal planning easier.",
-      name: "N. Patel",
-      role: "Operations Lead",
+      quote: "This is the first subscription tool that just makes sense.",
+      name: "Jamie R.",
+      role: "Agency owner",
     },
     {
-      quote:
-        "From personal subscriptions to client tooling, we finally have one reliable source of truth.",
-      name: "M. Santos",
+      quote: "I can finally see every renewal without digging through old notes.",
+      name: "Ari P.",
       role: "Founder",
     },
   ],
   faqs: [
     {
-      question: "Is Boopy only for agencies?",
-      answer:
-        "No. Boopy is for anyone: personal users, groups, agencies, and businesses. It scales with how you organize subscriptions.",
+      question: "Who is Boopy for?",
+      answer: "Anyone. Personal users, groups, agencies, and businesses.",
     },
     {
-      question: "Can my marketing partner edit this landing page without code?",
-      answer:
-        "Yes. Payload is used as a no-code CMS so non-technical collaborators can update messaging, sections, and CTAs quickly.",
+      question: "Can non-technical teammates edit this page?",
+      answer: "Yes. Use Payload CMS to update content without code.",
     },
   ],
   pricing: {
     free: {
       label: "Free",
       price: "$0",
-      description:
-        "Perfect for personal use or early-stage teams starting organized subscription tracking.",
-      features: ["Core tracking", "Renewal visibility", "Personal or workspace setup"],
+      description: "Great for getting started.",
+      features: ["Track subscriptions", "See renewals", "Personal workspace"],
       ctaLabel: "Get started",
     },
     pro: {
       label: "Pro",
       price: "$29",
-      description:
-        "For agencies and businesses that need scale, collaboration, and deeper automation.",
-      features: [
-        "Higher limits and advanced workflows",
-        "Batch document processing and collaboration",
-        "Expanded reporting and integration paths",
-      ],
+      description: "For teams that want more power.",
+      features: ["Higher limits", "Collaboration", "Advanced reports"],
       ctaLabel: "Upgrade to Pro",
     },
   },

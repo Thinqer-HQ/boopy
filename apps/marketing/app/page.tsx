@@ -56,7 +56,7 @@ export default async function MarketingHomePage() {
               </div>
             </div>
             <div className="panel hero-visual">
-              <p className="panel-eyebrow">One view. Total control.</p>
+              <p className="panel-eyebrow">At a glance</p>
               <div className="stack stack-tight">
                 {content.features.map((feature) => (
                   <div key={feature.title} className="mini-card mini-card-animated">
@@ -195,7 +195,7 @@ export default async function MarketingHomePage() {
 
         <section className="section reveal-up">
           <div className="container">
-            <h2 className="section-title">What users say</h2>
+            <h2 className="section-title">What people say</h2>
             <div className="three-grid">
               {content.testimonials.map((testimonial, index) => (
                 <article
@@ -214,7 +214,7 @@ export default async function MarketingHomePage() {
 
         <section className="section reveal-up">
           <div className="container">
-            <h2 className="section-title">FAQs</h2>
+            <h2 className="section-title">Quick answers</h2>
             <div className="three-grid">
               {content.faqs.map((faq, index) => (
                 <article
