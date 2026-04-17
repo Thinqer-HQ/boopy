@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { getMarketingContent } from "@/lib/payload";
 
 export default async function MarketingHomePage() {
@@ -21,9 +19,6 @@ export default async function MarketingHomePage() {
             <a href="#pricing" className="btn btn-ghost">
               Pricing
             </a>
-            <Link href="/studio" className="btn btn-ghost">
-              Content Studio
-            </Link>
             <a href={content.dashboardUrl} className="btn btn-primary">
               Open app
             </a>
@@ -175,26 +170,6 @@ export default async function MarketingHomePage() {
 
         <section className="section reveal-up">
           <div className="container">
-            <div className="panel cms-panel">
-              <div>
-                <p className="panel-eyebrow">No-code CMS workflow</p>
-                <h2 className="section-title">{content.noCodeCms.headline}</h2>
-                <p className="muted">{content.noCodeCms.description}</p>
-                <a className="btn btn-ghost" href={content.noCodeCms.ctaUrl}>
-                  {content.noCodeCms.ctaLabel}
-                </a>
-              </div>
-              <ul className="list cms-list">
-                {content.noCodeCms.points.map((point) => (
-                  <li key={point}>{point}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        <section className="section reveal-up">
-          <div className="container">
             <h2 className="section-title">What people say</h2>
             <div className="three-grid">
               {content.testimonials.map((testimonial, index) => (
@@ -236,9 +211,6 @@ export default async function MarketingHomePage() {
           <p>{content.seo.title}</p>
           <p className="muted">{content.seo.description}</p>
           <div className="footer-actions">
-            <Link href="/studio" className="btn btn-ghost">
-              Edit marketing content
-            </Link>
             <a href={content.dashboardUrl} className="btn btn-primary">
               Open Boopy app
             </a>
