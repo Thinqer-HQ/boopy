@@ -4,6 +4,7 @@ export type MarketingContent = {
     description: string;
     imageUrl: string | null;
   };
+  brandStatement: string;
   heroBadge: string;
   heroTitle: string;
   heroSubtitle: string;
@@ -16,6 +17,18 @@ export type MarketingContent = {
     url: string;
   };
   dashboardUrl: string;
+  socialProof: Array<{ value: string; label: string }>;
+  audienceHeadline: string;
+  audiences: Array<{ title: string; description: string }>;
+  valueHeadline: string;
+  valuePillars: Array<{ title: string; description: string }>;
+  noCodeCms: {
+    headline: string;
+    description: string;
+    points: string[];
+    ctaLabel: string;
+    ctaUrl: string;
+  };
   features: Array<{ title: string; description: string }>;
   testimonials: Array<{
     quote: string;
@@ -46,83 +59,144 @@ export type MarketingContent = {
 
 const fallbackContent: MarketingContent = {
   seo: {
-    title: "Boopy - Subscription Renewal Command Center",
+    title: "Boopy - The Comprehensive Subscription Manager",
     description:
-      "Track recurring subscriptions, monitor renewal dates, and automate reminders for agencies and teams.",
+      "Boopy helps anyone track subscriptions, renewal dates, and spending with one clean command center for personal, teams, agencies, and business use.",
     imageUrl: null,
   },
-  heroBadge: "Built for aggressive SaaS growth",
-  heroTitle: "Track subscriptions, stop surprise charges, and keep renewals under control.",
+  brandStatement: "One subscription manager for everyone.",
+  heroBadge: "Comprehensive subscription management",
+  heroTitle: "Track every recurring expense with clarity, control, and zero spreadsheet chaos.",
   heroSubtitle:
-    "Boopy gives founders and agencies one source of truth for recurring spend, renewal calendars, and multi-channel reminders.",
+    "Boopy is built for personal use, group use, agency operations, and business finance teams. Add subscriptions, monitor renewals, automate reminders, and understand spend across the whole stack.",
   primaryCta: {
-    label: "Start with Boopy",
+    label: "Start free",
     url: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
   },
   secondaryCta: {
-    label: "View pricing",
+    label: "See live demo",
     url: `${(process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login").replace(/\/login$/, "")}/settings/billing`,
   },
   dashboardUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
+  socialProof: [
+    { value: "Personal to Enterprise", label: "Use-case coverage" },
+    { value: "Multi-workspace", label: "Groups, clients, agencies" },
+    { value: "Alerts + Reports", label: "Actionable visibility" },
+  ],
+  audienceHeadline: "Built for every subscription operator",
+  audiences: [
+    {
+      title: "Personal users",
+      description:
+        "Track streaming, SaaS, utilities, and annual renewals in one place so nothing slips.",
+    },
+    {
+      title: "Families and groups",
+      description:
+        "Organize shared subscriptions per group with clearer ownership and predictable costs.",
+    },
+    {
+      title: "Agencies",
+      description:
+        "Manage internal tools and client subscriptions side-by-side with cleaner accountability.",
+    },
+    {
+      title: "Businesses",
+      description:
+        "Gain finance-ready renewal tracking and spend summaries across teams and workspaces.",
+    },
+  ],
+  valueHeadline: "Move from messy tracking to confident operations",
+  valuePillars: [
+    {
+      title: "Comprehensive subscription records",
+      description:
+        "Keep each subscription's vendor, amount, cadence, currency, and renewal metadata in one normalized place.",
+    },
+    {
+      title: "Renewal calendar and proactive alerts",
+      description:
+        "Catch renewals before charges hit with reminders and calendar-first visibility across your stack.",
+    },
+    {
+      title: "Documents and reporting that scale",
+      description:
+        "Turn invoices and receipts into structured records and export clean reports for stakeholders.",
+    },
+  ],
+  noCodeCms: {
+    headline: "No-code content editing for your marketing partner",
+    description:
+      "Use Payload as the content hub and edit this landing page without developer tickets. Update copy, proof, CTAs, FAQs, and pricing in minutes.",
+    points: [
+      "Payload global model controls all major landing sections",
+      "Safe fallback content keeps site live if CMS is unreachable",
+      "Visual studio route supports fast block experiments",
+    ],
+    ctaLabel: "Open content studio",
+    ctaUrl: "/studio",
+  },
   features: [
     {
-      title: "Centralized workspace tracking",
+      title: "Unified dashboard",
       description:
-        "Organize subscriptions by group and client, with shared visibility for operators and finance.",
+        "Stop jumping between docs and sheets. One surface for all subscription records and statuses.",
     },
     {
-      title: "Renewal calendar and reminders",
+      title: "Renewal intelligence",
       description:
-        "Get renewal visibility across email, push, and external destinations before deadlines hit.",
+        "See upcoming renewals, avoid accidental charges, and schedule action before deadlines.",
     },
     {
-      title: "Invoice document ingestion",
+      title: "Operational reports",
       description:
-        "Upload invoices and receipts, extract candidates, and confirm before creating subscription records.",
+        "Export clear summaries for personal budgeting, team planning, and business finance reviews.",
     },
   ],
   testimonials: [
     {
       quote:
-        "Boopy replaced our ad-hoc spreadsheets and gave our ops team renewal visibility we can trust.",
-      name: "A. Rivera",
-      role: "Agency operator",
+        "Boopy replaced five disconnected tracking docs and instantly made renewal planning easier.",
+      name: "N. Patel",
+      role: "Operations Lead",
     },
     {
       quote:
-        "Our finance and ops finally have one place to coordinate recurring spend and due dates.",
-      name: "K. Morgan",
-      role: "SaaS founder",
+        "From personal subscriptions to client tooling, we finally have one reliable source of truth.",
+      name: "M. Santos",
+      role: "Founder",
     },
   ],
   faqs: [
     {
-      question: "Can I manage multiple clients in one workspace?",
+      question: "Is Boopy only for agencies?",
       answer:
-        "Yes. Boopy supports grouped subscription tracking so agencies can manage client subscriptions in one dashboard.",
+        "No. Boopy is for anyone: personal users, groups, agencies, and businesses. It scales with how you organize subscriptions.",
     },
     {
-      question: "Can we start free and upgrade later?",
+      question: "Can my marketing partner edit this landing page without code?",
       answer:
-        "Yes. Start on Free, then upgrade to Pro when you need batch document processing and higher operational limits.",
+        "Yes. Payload is used as a no-code CMS so non-technical collaborators can update messaging, sections, and CTAs quickly.",
     },
   ],
   pricing: {
     free: {
       label: "Free",
       price: "$0",
-      description: "Ideal for solo founders validating renewal workflows.",
-      features: ["Single document upload", "Basic renewal tracking", "Personal workspace setup"],
+      description:
+        "Perfect for personal use or early-stage teams starting organized subscription tracking.",
+      features: ["Core tracking", "Renewal visibility", "Personal or workspace setup"],
       ctaLabel: "Get started",
     },
     pro: {
       label: "Pro",
       price: "$29",
-      description: "For teams that need operational scale and automation.",
+      description:
+        "For agencies and businesses that need scale, collaboration, and deeper automation.",
       features: [
-        "Batch document processing",
-        "Push + external channel automation",
-        "Advanced reports and integrations",
+        "Higher limits and advanced workflows",
+        "Batch document processing and collaboration",
+        "Expanded reporting and integration paths",
       ],
       ctaLabel: "Upgrade to Pro",
     },
@@ -135,6 +209,7 @@ type PayloadGlobalResponse = {
     description?: string;
     imageUrl?: string | null;
   };
+  brandStatement?: string;
   heroBadge?: string;
   heroTitle?: string;
   heroSubtitle?: string;
@@ -147,6 +222,18 @@ type PayloadGlobalResponse = {
     url?: string;
   };
   dashboardUrl?: string;
+  socialProof?: Array<{ value?: string; label?: string }>;
+  audienceHeadline?: string;
+  audiences?: Array<{ title?: string; description?: string }>;
+  valueHeadline?: string;
+  valuePillars?: Array<{ title?: string; description?: string }>;
+  noCodeCms?: {
+    headline?: string;
+    description?: string;
+    points?: Array<string | { value?: string }>;
+    ctaLabel?: string;
+    ctaUrl?: string;
+  };
   features?: Array<{ title?: string; description?: string }>;
   testimonials?: Array<{
     quote?: string;
@@ -207,6 +294,7 @@ export async function getMarketingContent(): Promise<MarketingContent> {
         description: data.seo?.description?.trim() || fallbackContent.seo.description,
         imageUrl: data.seo?.imageUrl?.trim() || fallbackContent.seo.imageUrl,
       },
+      brandStatement: data.brandStatement?.trim() || fallbackContent.brandStatement,
       heroBadge: data.heroBadge?.trim() || fallbackContent.heroBadge,
       heroTitle: data.heroTitle?.trim() || fallbackContent.heroTitle,
       heroSubtitle: data.heroSubtitle?.trim() || fallbackContent.heroSubtitle,
@@ -219,6 +307,36 @@ export async function getMarketingContent(): Promise<MarketingContent> {
         url: data.secondaryCta?.url?.trim() || fallbackContent.secondaryCta.url,
       },
       dashboardUrl: data.dashboardUrl?.trim() || fallbackContent.dashboardUrl,
+      socialProof:
+        data.socialProof
+          ?.map((item) => ({
+            value: item.value?.trim() || "",
+            label: item.label?.trim() || "",
+          }))
+          .filter((item) => item.value && item.label) || fallbackContent.socialProof,
+      audienceHeadline: data.audienceHeadline?.trim() || fallbackContent.audienceHeadline,
+      audiences:
+        data.audiences
+          ?.map((item) => ({
+            title: item.title?.trim() || "",
+            description: item.description?.trim() || "",
+          }))
+          .filter((item) => item.title && item.description) || fallbackContent.audiences,
+      valueHeadline: data.valueHeadline?.trim() || fallbackContent.valueHeadline,
+      valuePillars:
+        data.valuePillars
+          ?.map((item) => ({
+            title: item.title?.trim() || "",
+            description: item.description?.trim() || "",
+          }))
+          .filter((item) => item.title && item.description) || fallbackContent.valuePillars,
+      noCodeCms: {
+        headline: data.noCodeCms?.headline?.trim() || fallbackContent.noCodeCms.headline,
+        description: data.noCodeCms?.description?.trim() || fallbackContent.noCodeCms.description,
+        points: normalizeFeatureList(data.noCodeCms?.points, fallbackContent.noCodeCms.points),
+        ctaLabel: data.noCodeCms?.ctaLabel?.trim() || fallbackContent.noCodeCms.ctaLabel,
+        ctaUrl: data.noCodeCms?.ctaUrl?.trim() || fallbackContent.noCodeCms.ctaUrl,
+      },
       features:
         data.features
           ?.map((feature) => ({

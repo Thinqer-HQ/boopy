@@ -12,9 +12,10 @@ const defaultData: Data = {
     {
       type: "Hero",
       props: {
-        title: "Launch your next campaign in minutes.",
-        subtitle: "Use this editor to rapidly prototype and publish marketing sections.",
-        ctaLabel: "Open dashboard",
+        title: "Boopy is your comprehensive subscription manager.",
+        subtitle:
+          "Personal users, groups, agencies, and businesses can all track subscriptions in one command center.",
+        ctaLabel: "Start free",
         ctaUrl: "https://app.boopy.dev/login",
       },
     },
@@ -36,9 +37,10 @@ export default function StudioPage() {
             ctaUrl: { type: "text" },
           },
           defaultProps: {
-            title: "Launch your next campaign in minutes.",
-            subtitle: "Use this editor to rapidly prototype and publish marketing sections.",
-            ctaLabel: "Open dashboard",
+            title: "Boopy is your comprehensive subscription manager.",
+            subtitle:
+              "Personal users, groups, agencies, and businesses can all track subscriptions in one command center.",
+            ctaLabel: "Start free",
             ctaUrl: "https://app.boopy.dev/login",
           },
           render: (props: {

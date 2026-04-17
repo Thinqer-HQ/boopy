@@ -1,13 +1,13 @@
 # Boopy Marketing App
 
-Separate Next.js marketing application for aggressive growth experiments.
+Separate Next.js marketing application for high-velocity growth and conversion experiments.
 
 ## Why this app exists
 
 - Separate deployment lifecycle from the dashboard app
 - Faster landing page iteration and A/B testing
-- Integrates with Payload as a headless CMS endpoint
-- Includes a Puck visual editor route at `/studio`
+- Integrates with Payload as a no-code CMS endpoint
+- Includes a visual editor route at `/studio` for quick block experiments
 
 ## Run locally
 
@@ -25,13 +25,26 @@ Default local URL: `http://localhost:3001`
 - `PAYLOAD_API_URL` (e.g. `https://your-payload-domain.com`)
 - `PAYLOAD_API_TOKEN` (optional, for protected globals endpoint)
 
-## Content source
+## Content source (no-code)
 
 The homepage fetches `marketing-site` global from Payload:
 
 - `GET {PAYLOAD_API_URL}/api/globals/marketing-site`
 
 If Payload is unreachable, the app falls back to local default content.
+
+## Can non-dev marketing partners edit this?
+
+Yes. Payload is the primary no-code control layer.
+
+Recommended workflow:
+
+1. Open Payload admin and edit the `marketing-site` global.
+2. Update messaging, audience cards, value pillars, social proof, pricing, FAQs, and CTAs.
+3. Save and publish.
+4. Verify on the deployed marketing URL.
+
+This lets marketing modify positioning and launch copy without code changes.
 
 ## Payload schema starter
 
@@ -43,7 +56,12 @@ Use the provided schema files in `payload-schema/`:
 They define a production-ready `marketing-site` global with:
 
 - SEO metadata
+- Brand statement
 - Hero + CTA configuration
+- Social proof stats
+- Audience segments (personal, group, agency, business, etc.)
+- Value pillars
+- No-code CMS section content
 - Feature cards
 - Testimonials
 - FAQs

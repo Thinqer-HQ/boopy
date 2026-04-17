@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Boopy - Never Miss a Renewal",
+  title: "Boopy - Comprehensive Subscription Manager",
   description:
-    "Boopy helps teams and agencies track recurring subscriptions, manage renewal dates, and automate reminders.",
+    "Boopy helps anyone manage subscriptions: personal use, group use, agencies, and businesses with one comprehensive subscription command center.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

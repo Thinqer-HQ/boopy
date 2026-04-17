@@ -17,6 +17,7 @@ export const MarketingSiteGlobal: GlobalConfig = {
         { name: "imageUrl", type: "text" },
       ],
     },
+    { name: "brandStatement", type: "text", required: true },
     { name: "heroBadge", type: "text", required: true },
     { name: "heroTitle", type: "text", required: true },
     { name: "heroSubtitle", type: "textarea", required: true },
@@ -37,6 +38,47 @@ export const MarketingSiteGlobal: GlobalConfig = {
       ],
     },
     { name: "dashboardUrl", type: "text", required: true },
+    {
+      name: "socialProof",
+      type: "array",
+      minRows: 3,
+      maxRows: 4,
+      fields: [
+        { name: "value", type: "text", required: true },
+        { name: "label", type: "text", required: true },
+      ],
+    },
+    { name: "audienceHeadline", type: "text", required: true },
+    {
+      name: "audiences",
+      type: "array",
+      minRows: 4,
+      fields: [
+        { name: "title", type: "text", required: true },
+        { name: "description", type: "textarea", required: true },
+      ],
+    },
+    { name: "valueHeadline", type: "text", required: true },
+    {
+      name: "valuePillars",
+      type: "array",
+      minRows: 3,
+      fields: [
+        { name: "title", type: "text", required: true },
+        { name: "description", type: "textarea", required: true },
+      ],
+    },
+    {
+      name: "noCodeCms",
+      type: "group",
+      fields: [
+        { name: "headline", type: "text", required: true },
+        { name: "description", type: "textarea", required: true },
+        { name: "points", type: "array", fields: [{ name: "value", type: "text" }] },
+        { name: "ctaLabel", type: "text", required: true },
+        { name: "ctaUrl", type: "text", required: true },
+      ],
+    },
     {
       name: "features",
       type: "array",
