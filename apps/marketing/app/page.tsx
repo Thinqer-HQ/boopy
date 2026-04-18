@@ -2,6 +2,9 @@ import { getMarketingContent } from "@/lib/payload";
 
 export default async function MarketingHomePage() {
   const content = await getMarketingContent();
+  const visibleFaqs = content.faqs.filter(
+    (faq) => faq.question.trim().toLowerCase() !== "can non-technical teammates edit this page?"
+  );
 
   return (
     <div className="site-shell theme-mono">
@@ -191,7 +194,7 @@ export default async function MarketingHomePage() {
           <div className="container">
             <h2 className="section-title">Quick answers</h2>
             <div className="three-grid">
-              {content.faqs.map((faq, index) => (
+              {visibleFaqs.map((faq, index) => (
                 <article
                   key={faq.question}
                   className="panel faq-item stagger-up"

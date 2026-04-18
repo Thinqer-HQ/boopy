@@ -158,10 +158,6 @@ const fallbackContent: MarketingContent = {
       question: "Who is Boopy for?",
       answer: "Anyone. Personal users, groups, agencies, and businesses.",
     },
-    {
-      question: "Can non-technical teammates edit this page?",
-      answer: "Yes. Use Payload CMS to update content without code.",
-    },
   ],
   pricing: {
     free: {
