@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { syncWorkspaceCalendar } from "@/lib/calendar/sync";
 import { getEnv } from "@/lib/env";
 import { log } from "@/lib/log";
-import { sendRenewalEmail } from "@/lib/notifications/email";
-import { sendPushReminder } from "@/lib/notifications/push";
+import { dispatchNotification, type NotificationChannel } from "@/lib/notifications/router";
 import { collectDueNotificationPlans } from "@/lib/notifications/scheduler";
 import { supabaseService } from "@/lib/supabase/server";
 
@@ -18,68 +18,24 @@ type SubscriptionRow = {
   id: string;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
-  clients:
-    | {
-        workspace_id: string;
-      }
-    | Array<{ workspace_id: string }>
-    | null;
+  groups: { workspace_id: string } | Array<{ workspace_id: string }> | null;
 };
 
-type PendingEmailJobRow = {
-  id: string;
-  lead_time_days: number;
-  renewal_date: string;
-  attempt_count: number;
-  subscriptions:
-    | {
-        vendor_name: string;
-        amount: number;
-        currency: string;
-        clients:
-          | {
-              name: string;
-              workspaces:
-                | { owner_user_id: string; name: string }
-                | Array<{ owner_user_id: string; name: string }>
-                | null;
-            }
-          | Array<{
-              name: string;
-              workspaces:
-                | { owner_user_id: string; name: string }
-                | Array<{ owner_user_id: string; name: string }>
-                | null;
-            }>
-          | null;
-      }
-    | Array<{
-        vendor_name: string;
-        amount: number;
-        currency: string;
-        clients:
-          | {
-              name: string;
-              workspaces:
-                | { owner_user_id: string; name: string }
-                | Array<{ owner_user_id: string; name: string }>
-                | null;
-            }
-          | Array<{
-              name: string;
-              workspaces:
-                | { owner_user_id: string; name: string }
-                | Array<{ owner_user_id: string; name: string }>
-                | null;
-            }>
-          | null;
-      }>
-    | null;
-};
-
-type PendingPushJobRow = {
+type DestinationRow = {
   id: string;
   workspace_id: string;
+  channel: NotificationChannel;
+  target_url: string | null;
+  secret_header: string | null;
+  is_enabled: boolean;
+};
+
+type PendingJobRow = {
+  id: string;
+  workspace_id: string;
+  subscription_id: string;
+  channel: NotificationChannel;
+  destination_id: string | null;
   lead_time_days: number;
   renewal_date: string;
   attempt_count: number;
@@ -88,9 +44,10 @@ type PendingPushJobRow = {
         vendor_name: string;
         amount: number;
         currency: string;
-        clients:
+        groups:
           | {
               name: string;
+              workspace_id: string;
               workspaces:
                 | { owner_user_id: string; name: string }
                 | Array<{ owner_user_id: string; name: string }>
@@ -98,6 +55,7 @@ type PendingPushJobRow = {
             }
           | Array<{
               name: string;
+              workspace_id: string;
               workspaces:
                 | { owner_user_id: string; name: string }
                 | Array<{ owner_user_id: string; name: string }>
@@ -109,9 +67,10 @@ type PendingPushJobRow = {
         vendor_name: string;
         amount: number;
         currency: string;
-        clients:
+        groups:
           | {
               name: string;
+              workspace_id: string;
               workspaces:
                 | { owner_user_id: string; name: string }
                 | Array<{ owner_user_id: string; name: string }>
@@ -119,6 +78,7 @@ type PendingPushJobRow = {
             }
           | Array<{
               name: string;
+              workspace_id: string;
               workspaces:
                 | { owner_user_id: string; name: string }
                 | Array<{ owner_user_id: string; name: string }>
@@ -126,6 +86,10 @@ type PendingPushJobRow = {
             }>
           | null;
       }>
+    | null;
+  notification_destinations:
+    | { target_url: string | null; secret_header: string | null }
+    | Array<{ target_url: string | null; secret_header: string | null }>
     | null;
 };
 
@@ -167,14 +131,11 @@ export async function GET(request: Request) {
   const nowIso = now.toISOString();
   const runId = crypto.randomUUID();
 
-  log.info("cron_run_started", { runId, nowIso });
-
   const { data: prefsRows, error: prefsError } = await supabase
     .from("notification_prefs")
     .select("workspace_id, lead_times_days, email_enabled, push_enabled");
   if (prefsError) {
     if (isMissingTableError(prefsError.message)) {
-      log.warn("cron_skipped_schema_not_ready", { runId, error: prefsError.message });
       return NextResponse.json({
         ok: true,
         runId,
@@ -182,7 +143,6 @@ export async function GET(request: Request) {
         reason: "Database schema not ready for notification tables",
       });
     }
-    log.error("cron_load_prefs_failed", { runId, error: prefsError.message });
     return NextResponse.json({ error: "Failed to load notification prefs" }, { status: 500 });
   }
 
@@ -191,23 +151,21 @@ export async function GET(request: Request) {
       row.workspace_id,
       {
         leadTimesDays: row.lead_times_days,
-        emailEnabled: row.email_enabled,
-        pushEnabled: row.push_enabled,
+        emailEnabled: true,
+        pushEnabled: true,
       },
     ])
   );
 
   const { data: subscriptionRows, error: subscriptionsError } = await supabase
     .from("subscriptions")
-    .select("id, renewal_date, status, clients!inner(workspace_id)")
+    .select("id, renewal_date, status, groups!inner(workspace_id)")
     .eq("status", "active")
     .lte(
       "renewal_date",
       new Date(now.getTime() + 1000 * 60 * 60 * 24 * 45).toISOString().slice(0, 10)
     );
-
   if (subscriptionsError) {
-    log.error("cron_load_subscriptions_failed", { runId, error: subscriptionsError.message });
     return NextResponse.json({ error: "Failed to load subscriptions" }, { status: 500 });
   }
 
@@ -215,11 +173,11 @@ export async function GET(request: Request) {
     now,
     subscriptions: ((subscriptionRows ?? []) as SubscriptionRow[])
       .map((row) => {
-        const client = first(row.clients);
-        if (!client?.workspace_id) return null;
+        const group = first(row.groups);
+        if (!group?.workspace_id) return null;
         return {
           id: row.id,
-          workspaceId: client.workspace_id,
+          workspaceId: group.workspace_id,
           renewalDate: row.renewal_date,
           status: row.status,
         };
@@ -228,142 +186,131 @@ export async function GET(request: Request) {
     prefsByWorkspaceId,
   });
 
-  if (plans.length > 0) {
-    const { error: insertError } = await supabase.from("notification_jobs").upsert(
-      plans.map((plan) => ({
-        workspace_id: plan.workspaceId,
-        subscription_id: plan.subscriptionId,
-        channel: plan.channel,
-        lead_time_days: plan.leadTimeDays,
-        renewal_date: plan.renewalDate,
-        scheduled_for: plan.scheduledFor,
-        idempotency_key: plan.idempotencyKey,
-      })),
-      { onConflict: "workspace_id,idempotency_key", ignoreDuplicates: true }
-    );
-
-    if (insertError) {
-      log.error("cron_insert_jobs_failed", {
-        runId,
-        error: insertError.message,
-        planCount: plans.length,
+  const reminderMap = new Map<
+    string,
+    {
+      workspaceId: string;
+      subscriptionId: string;
+      renewalDate: string;
+      leadTimeDays: number;
+      scheduledFor: string;
+    }
+  >();
+  for (const plan of plans) {
+    const key = `${plan.workspaceId}:${plan.subscriptionId}:${plan.leadTimeDays}:${plan.renewalDate}`;
+    if (!reminderMap.has(key)) {
+      reminderMap.set(key, {
+        workspaceId: plan.workspaceId,
+        subscriptionId: plan.subscriptionId,
+        renewalDate: plan.renewalDate,
+        leadTimeDays: plan.leadTimeDays,
+        scheduledFor: plan.scheduledFor,
       });
+    }
+  }
+
+  const workspaceIds = [...new Set([...reminderMap.values()].map((value) => value.workspaceId))];
+  const { data: destinationRows } = workspaceIds.length
+    ? await supabase
+        .from("notification_destinations")
+        .select("id, workspace_id, channel, target_url, secret_header, is_enabled")
+        .in("workspace_id", workspaceIds)
+        .eq("is_enabled", true)
+    : { data: [] as DestinationRow[] };
+
+  const destinationsByWorkspace = new Map<string, DestinationRow[]>();
+  for (const row of (destinationRows ?? []) as DestinationRow[]) {
+    const current = destinationsByWorkspace.get(row.workspace_id) ?? [];
+    current.push(row);
+    destinationsByWorkspace.set(row.workspace_id, current);
+  }
+
+  const jobsToInsert: Array<{
+    workspace_id: string;
+    subscription_id: string;
+    destination_id: string | null;
+    channel: NotificationChannel;
+    lead_time_days: number;
+    renewal_date: string;
+    scheduled_for: string;
+    idempotency_key: string;
+  }> = [];
+
+  for (const reminder of reminderMap.values()) {
+    const prefs = (prefsRows ?? []).find((row) => row.workspace_id === reminder.workspaceId) as
+      | NotificationPrefsRow
+      | undefined;
+    if (prefs?.email_enabled) {
+      jobsToInsert.push({
+        workspace_id: reminder.workspaceId,
+        subscription_id: reminder.subscriptionId,
+        destination_id: null,
+        channel: "email",
+        lead_time_days: reminder.leadTimeDays,
+        renewal_date: reminder.renewalDate,
+        scheduled_for: reminder.scheduledFor,
+        idempotency_key: `${reminder.subscriptionId}:${reminder.leadTimeDays}:${reminder.renewalDate}:email`,
+      });
+    }
+    if (prefs?.push_enabled) {
+      jobsToInsert.push({
+        workspace_id: reminder.workspaceId,
+        subscription_id: reminder.subscriptionId,
+        destination_id: null,
+        channel: "push",
+        lead_time_days: reminder.leadTimeDays,
+        renewal_date: reminder.renewalDate,
+        scheduled_for: reminder.scheduledFor,
+        idempotency_key: `${reminder.subscriptionId}:${reminder.leadTimeDays}:${reminder.renewalDate}:push`,
+      });
+    }
+    for (const destination of destinationsByWorkspace.get(reminder.workspaceId) ?? []) {
+      if (destination.channel === "email" || destination.channel === "push") continue;
+      jobsToInsert.push({
+        workspace_id: reminder.workspaceId,
+        subscription_id: reminder.subscriptionId,
+        destination_id: destination.id,
+        channel: destination.channel,
+        lead_time_days: reminder.leadTimeDays,
+        renewal_date: reminder.renewalDate,
+        scheduled_for: reminder.scheduledFor,
+        idempotency_key: `${reminder.subscriptionId}:${reminder.leadTimeDays}:${reminder.renewalDate}:${destination.id}`,
+      });
+    }
+  }
+
+  if (jobsToInsert.length > 0) {
+    const { error: insertError } = await supabase.from("notification_jobs").upsert(jobsToInsert, {
+      onConflict: "workspace_id,idempotency_key",
+      ignoreDuplicates: true,
+    });
+    if (insertError) {
       return NextResponse.json({ error: "Failed to create jobs" }, { status: 500 });
     }
   }
 
-  const { data: pendingEmailJobs, error: pendingJobsError } = await supabase
+  const { data: pendingJobs, error: pendingError } = await supabase
     .from("notification_jobs")
     .select(
-      "id, lead_time_days, renewal_date, attempt_count, subscriptions!inner(vendor_name, amount, currency, clients!inner(name, workspaces!inner(owner_user_id, name)))"
+      "id, workspace_id, subscription_id, destination_id, channel, lead_time_days, renewal_date, attempt_count, subscriptions!inner(vendor_name, amount, currency, groups!inner(name, workspace_id, workspaces!inner(owner_user_id, name))), notification_destinations(target_url, secret_header)"
     )
-    .eq("channel", "email")
     .eq("status", "pending")
     .lte("scheduled_for", nowIso)
-    .limit(100);
+    .limit(200);
 
-  if (pendingJobsError) {
-    log.error("cron_load_pending_jobs_failed", { runId, error: pendingJobsError.message });
+  if (pendingError) {
     return NextResponse.json({ error: "Failed to load pending jobs" }, { status: 500 });
   }
 
-  let emailsSent = 0;
-  let emailsFailed = 0;
-
-  for (const job of (pendingEmailJobs ?? []) as PendingEmailJobRow[]) {
-    try {
-      const subscription = first(job.subscriptions);
-      const client = first(subscription?.clients);
-      const workspace = first(client?.workspaces);
-      if (!subscription || !client || !workspace) {
-        throw new Error("Missing relational data for notification job");
-      }
-
-      const { data: userResponse, error: userError } = await supabase.auth.admin.getUserById(
-        workspace.owner_user_id
-      );
-      if (userError) throw new Error(userError.message);
-      const email = userResponse?.user?.email;
-      if (!email) throw new Error("Workspace owner has no email");
-
-      await sendRenewalEmail({
-        to: email,
-        workspaceName: workspace.name,
-        clientName: client.name,
-        vendorName: subscription.vendor_name,
-        amount: Number(subscription.amount ?? 0),
-        currency: subscription.currency,
-        renewalDate: job.renewal_date,
-        leadTimeDays: job.lead_time_days,
-      });
-
-      const { error: updateError } = await supabase
-        .from("notification_jobs")
-        .update({
-          status: "sent",
-          sent_at: new Date().toISOString(),
-          attempt_count: (job.attempt_count ?? 0) + 1,
-          error: null,
-        })
-        .eq("id", job.id);
-      if (updateError) throw new Error(updateError.message);
-      emailsSent += 1;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown email send failure";
-      const { error: failUpdateError } = await supabase
-        .from("notification_jobs")
-        .update({
-          status: "failed",
-          attempt_count: (job.attempt_count ?? 0) + 1,
-          error: message,
-        })
-        .eq("id", job.id);
-
-      if (failUpdateError) {
-        log.error("cron_mark_job_failed_update_failed", {
-          runId,
-          jobId: job.id,
-          updateError: failUpdateError.message,
-          originalError: message,
-        });
-      }
-      emailsFailed += 1;
-    }
-  }
-
-  const { data: pendingPushJobs, error: pendingPushJobsError } = await supabase
-    .from("notification_jobs")
-    .select(
-      "id, workspace_id, lead_time_days, renewal_date, attempt_count, subscriptions!inner(vendor_name, amount, currency, clients!inner(name, workspaces!inner(owner_user_id, name)))"
-    )
-    .eq("channel", "push")
-    .eq("status", "pending")
-    .lte("scheduled_for", nowIso)
-    .limit(100);
-
-  if (pendingPushJobsError) {
-    log.error("cron_load_pending_push_jobs_failed", {
-      runId,
-      error: pendingPushJobsError.message,
-    });
-    return NextResponse.json({ error: "Failed to load pending push jobs" }, { status: 500 });
-  }
-
-  const workspaceIds = [
-    ...new Set(((pendingPushJobs ?? []) as PendingPushJobRow[]).map((job) => job.workspace_id)),
+  const workspaceIdsWithPush = [
+    ...new Set(((pendingJobs ?? []) as PendingJobRow[]).map((job) => job.workspace_id)),
   ];
   const pushByWorkspaceId = new Map<string, PushSubscriptionJSON[]>();
-  if (workspaceIds.length > 0) {
-    const { data: pushRows, error: pushRowsError } = await supabase
+  if (workspaceIdsWithPush.length > 0) {
+    const { data: pushRows } = await supabase
       .from("push_subscriptions")
       .select("workspace_id, subscription_json")
-      .in("workspace_id", workspaceIds);
-
-    if (pushRowsError) {
-      log.error("cron_load_push_subscriptions_failed", { runId, error: pushRowsError.message });
-      return NextResponse.json({ error: "Failed to load push subscriptions" }, { status: 500 });
-    }
-
+      .in("workspace_id", workspaceIdsWithPush);
     for (const row of (pushRows ?? []) as PushSubscriptionRow[]) {
       const current = pushByWorkspaceId.get(row.workspace_id) ?? [];
       current.push(row.subscription_json);
@@ -371,37 +318,48 @@ export async function GET(request: Request) {
     }
   }
 
-  let pushesSent = 0;
-  let pushesFailed = 0;
-
-  for (const job of (pendingPushJobs ?? []) as PendingPushJobRow[]) {
+  let sent = 0;
+  let failed = 0;
+  let retried = 0;
+  for (const job of (pendingJobs ?? []) as PendingJobRow[]) {
     try {
       const subscription = first(job.subscriptions);
-      const client = first(subscription?.clients);
-      const workspace = first(client?.workspaces);
-      if (!subscription || !client || !workspace) {
-        throw new Error("Missing relational data for push job");
+      const group = first(subscription?.groups);
+      const workspace = first(group?.workspaces);
+      if (!subscription || !group || !workspace) {
+        throw new Error("Missing relational data");
       }
 
-      const subscriptionsForWorkspace = pushByWorkspaceId.get(job.workspace_id) ?? [];
-      if (subscriptionsForWorkspace.length === 0) {
-        throw new Error("No push subscriptions saved for workspace");
-      }
+      const context = {
+        workspaceName: workspace.name,
+        groupName: group.name,
+        vendorName: subscription.vendor_name,
+        amount: Number(subscription.amount ?? 0),
+        currency: subscription.currency,
+        renewalDate: job.renewal_date,
+        leadTimeDays: job.lead_time_days,
+      };
 
-      for (const pushSub of subscriptionsForWorkspace) {
-        await sendPushReminder({
-          subscription: pushSub,
-          workspaceName: workspace.name,
-          clientName: client.name,
-          vendorName: subscription.vendor_name,
-          amount: Number(subscription.amount ?? 0),
-          currency: subscription.currency,
-          renewalDate: job.renewal_date,
-          leadTimeDays: job.lead_time_days,
+      if (job.channel === "email") {
+        const userResponse = await supabase.auth.admin.getUserById(workspace.owner_user_id);
+        const email = userResponse.data?.user?.email;
+        if (!email) throw new Error("Workspace owner has no email");
+        await dispatchNotification(context, { channel: "email", email });
+      } else if (job.channel === "push") {
+        await dispatchNotification(context, {
+          channel: "push",
+          pushSubscriptions: pushByWorkspaceId.get(job.workspace_id) ?? [],
+        });
+      } else {
+        const destination = first(job.notification_destinations);
+        await dispatchNotification(context, {
+          channel: job.channel,
+          webhookUrl: destination?.target_url ?? undefined,
+          secretHeader: destination?.secret_header ?? null,
         });
       }
 
-      const { error: updateError } = await supabase
+      await supabase
         .from("notification_jobs")
         .update({
           status: "sent",
@@ -410,47 +368,53 @@ export async function GET(request: Request) {
           error: null,
         })
         .eq("id", job.id);
-      if (updateError) throw new Error(updateError.message);
-
-      pushesSent += 1;
-    } catch (pushError) {
-      const message = pushError instanceof Error ? pushError.message : "Unknown push send failure";
-      const { error: failUpdateError } = await supabase
-        .from("notification_jobs")
-        .update({
-          status: "failed",
-          attempt_count: (job.attempt_count ?? 0) + 1,
-          error: message,
-        })
-        .eq("id", job.id);
-      if (failUpdateError) {
-        log.error("cron_mark_push_job_failed_update_failed", {
-          runId,
-          jobId: job.id,
-          updateError: failUpdateError.message,
-          originalError: message,
-        });
+      sent += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown send failure";
+      const attempts = (job.attempt_count ?? 0) + 1;
+      if (attempts < 3) {
+        const nextSchedule = new Date(now.getTime() + attempts * 5 * 60 * 1000).toISOString();
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "pending",
+            scheduled_for: nextSchedule,
+            attempt_count: attempts,
+            error: message,
+          })
+          .eq("id", job.id);
+        retried += 1;
+      } else {
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "failed",
+            attempt_count: attempts,
+            error: message,
+          })
+          .eq("id", job.id);
+        failed += 1;
       }
-      pushesFailed += 1;
     }
   }
 
-  log.info("cron_run_finished", {
-    runId,
-    plansEvaluated: plans.length,
-    emailsSent,
-    emailsFailed,
-    pushesSent,
-    pushesFailed,
-  });
+  for (const workspaceId of workspaceIds) {
+    await syncWorkspaceCalendar(workspaceId).catch((calendarError) => {
+      log.warn("calendar_sync_skipped", {
+        runId,
+        workspaceId,
+        error: calendarError instanceof Error ? calendarError.message : "unknown",
+      });
+    });
+  }
 
   return NextResponse.json({
     ok: true,
     runId,
     plansEvaluated: plans.length,
-    emailsSent,
-    emailsFailed,
-    pushesSent,
-    pushesFailed,
+    jobsCreated: jobsToInsert.length,
+    sent,
+    failed,
+    retried,
   });
 }

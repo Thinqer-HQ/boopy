@@ -1,11 +1,12 @@
 "use client";
 
-import { Bell, ChevronDown, CreditCard, LogOut, Settings } from "lucide-react";
+import { Bell, ChevronDown, CreditCard, LogOut, Settings, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,6 +17,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WorkspaceSettingsDialog } from "@/components/boopy/workspace-settings-dialog";
+import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
@@ -29,12 +32,37 @@ export function AppHeader({ className }: { className?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [email, setEmail] = useState<string | undefined>();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [workspaceSettings, setWorkspaceSettings] = useState<{
+    workspaceId: string;
+    name: string;
+    defaultCurrency: string;
+  } | null>(null);
+  const billing = useWorkspaceBilling(workspaceSettings?.workspaceId ?? null);
 
   useEffect(() => {
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
-    void supabase.auth.getUser().then(({ data }) => {
+    void supabase.auth.getUser().then(async ({ data }) => {
       setEmail(data.user?.email ?? undefined);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+      const response = await fetch("/api/workspace/settings", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) return;
+      const payload = (await response.json()) as {
+        workspace?: { id: string; name: string; defaultCurrency: string };
+      };
+      if (!payload.workspace) return;
+      setWorkspaceSettings({
+        workspaceId: payload.workspace.id,
+        name: payload.workspace.name,
+        defaultCurrency: payload.workspace.defaultCurrency,
+      });
     });
   }, []);
 
@@ -44,6 +72,42 @@ export function AppHeader({ className }: { className?: string }) {
     await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
+  }
+
+  async function saveWorkspaceSettings(input: { name: string; defaultCurrency: string }) {
+    const supabase = getSupabaseBrowser();
+    if (!supabase || !workspaceSettings) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+
+    setSettingsSaving(true);
+    const response = await fetch("/api/workspace/settings", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        workspaceId: workspaceSettings.workspaceId,
+        name: input.name,
+        defaultCurrency: input.defaultCurrency,
+      }),
+    });
+    setSettingsSaving(false);
+    if (!response.ok) return;
+    const payload = (await response.json()) as {
+      workspace?: { id: string; name: string; defaultCurrency: string };
+    };
+    if (payload.workspace) {
+      setWorkspaceSettings({
+        workspaceId: payload.workspace.id,
+        name: payload.workspace.name,
+        defaultCurrency: payload.workspace.defaultCurrency,
+      });
+    }
+    setSettingsOpen(false);
   }
 
   return (
@@ -74,26 +138,88 @@ export function AppHeader({ className }: { className?: string }) {
             Dashboard
           </Link>
           <Link
-            href="/clients"
+            href="/groups"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              (pathname === "/clients" || pathname.startsWith("/clients/")) &&
+              (pathname === "/groups" || pathname.startsWith("/groups/")) &&
                 "bg-muted text-foreground"
             )}
           >
-            Clients
+            Groups
+          </Link>
+          <Link
+            href="/subscriptions"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/subscriptions" && "bg-muted text-foreground"
+            )}
+          >
+            Subscriptions
+          </Link>
+          <Link
+            href="/calendar"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/calendar" && "bg-muted text-foreground"
+            )}
+          >
+            Calendar
+          </Link>
+          <Link
+            href="/documents"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/documents" && "bg-muted text-foreground"
+            )}
+          >
+            Documents
+          </Link>
+          <Link
+            href="/reports"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/reports" && "bg-muted text-foreground"
+            )}
+          >
+            Reports
+          </Link>
+          <Link
+            href="/notifications"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              pathname === "/notifications" && "bg-muted text-foreground"
+            )}
+          >
+            Notifications
           </Link>
         </nav>
       </div>
 
       <div className="flex items-center gap-2">
+        <Link href="/settings/billing" className="hidden sm:block">
+          <Badge variant={billing.plan === "pro" ? "secondary" : "outline"}>
+            {billing.plan === "pro" ? "PRO" : "FREE"}
+          </Badge>
+        </Link>
+        <button
+          type="button"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "text-muted-foreground gap-1.5 px-2"
+          )}
+          onClick={() => setSettingsOpen(true)}
+        >
+          <SlidersHorizontal className="size-4" />
+          <span className="text-xs">{workspaceSettings?.defaultCurrency ?? "USD"}</span>
+        </button>
         <Link
-          href="/settings/notifications"
+          href="/notifications"
           aria-label="Notifications"
           className={cn(
             buttonVariants({ variant: "ghost", size: "icon" }),
             "text-muted-foreground",
-            pathname.startsWith("/settings/notifications") && "bg-muted text-foreground"
+            (pathname.startsWith("/settings/notifications") || pathname === "/notifications") &&
+              "bg-muted text-foreground"
           )}
         >
           <Bell className="size-4" />
@@ -127,6 +253,15 @@ export function AppHeader({ className }: { className?: string }) {
             <DropdownMenuItem
               className="gap-2"
               onClick={() => {
+                router.push("/settings/workspace");
+              }}
+            >
+              <SlidersHorizontal className="size-4" />
+              Workspace settings
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => {
                 router.push("/settings/notifications");
               }}
             >
@@ -154,6 +289,18 @@ export function AppHeader({ className }: { className?: string }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {workspaceSettings ? (
+        <WorkspaceSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          title="Workspace settings"
+          description="Quickly update workspace name and default currency."
+          initialName={workspaceSettings.name}
+          initialCurrency={workspaceSettings.defaultCurrency}
+          saving={settingsSaving}
+          onSave={saveWorkspaceSettings}
+        />
+      ) : null}
     </header>
   );
 }

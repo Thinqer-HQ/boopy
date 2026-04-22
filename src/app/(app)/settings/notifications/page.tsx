@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { DestinationForm } from "@/components/boopy/notifications/destination-form";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,7 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
+import { base64UrlToUint8Array, isValidVapidPublicKey } from "@/lib/notifications/vapid";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 
 function parseLeadTimes(raw: string): number[] {
@@ -19,14 +22,8 @@ function parseLeadTimes(raw: string): number[] {
     .sort((a, b) => b - a);
 }
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const normalized = (base64String + padding).replaceAll("-", "+").replaceAll("_", "/");
-  const rawData = atob(normalized);
-  return Uint8Array.from(rawData, (char) => char.charCodeAt(0));
-}
-
 export default function NotificationSettingsPage() {
+  const searchParams = useSearchParams();
   const { state, reload } = usePrimaryWorkspace();
   const [leadTimesText, setLeadTimesText] = useState("7,3,1");
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -36,12 +33,54 @@ export default function NotificationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [destinations, setDestinations] = useState<
+    Array<{
+      id: string;
+      channel: "slack" | "discord" | "webhook";
+      name: string;
+      target_url: string | null;
+      is_enabled: boolean;
+    }>
+  >([]);
 
   useEffect(() => {
     setPushReady(
       typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window
     );
   }, []);
+
+  useEffect(() => {
+    const calendar = searchParams.get("calendar");
+    if (calendar === "connected") {
+      setMessage("Google Calendar connected.");
+      setError(null);
+    } else if (calendar === "error") {
+      setError("Google Calendar connection failed. Please try again.");
+    }
+  }, [searchParams]);
+
+  async function refreshDestinations(workspaceId: string) {
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const { data: destinationRows, error: destinationError } = await supabase
+      .from("notification_destinations")
+      .select("id, channel, name, target_url, is_enabled")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: false });
+    if (destinationError) {
+      setError(destinationError.message);
+      return;
+    }
+    setDestinations(
+      (destinationRows ?? []) as Array<{
+        id: string;
+        channel: "slack" | "discord" | "webhook";
+        name: string;
+        target_url: string | null;
+        is_enabled: boolean;
+      }>
+    );
+  }
 
   useEffect(() => {
     async function loadSettings() {
@@ -64,6 +103,7 @@ export default function NotificationSettingsPage() {
         setEmailEnabled(Boolean(data.email_enabled));
         setPushEnabled(Boolean(data.push_enabled));
       }
+      await refreshDestinations(state.workspaceId);
     }
 
     queueMicrotask(() => {
@@ -113,10 +153,13 @@ export default function NotificationSettingsPage() {
     if (!supabase) return;
 
     const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!vapidPublicKey?.trim()) {
-      setError("NEXT_PUBLIC_VAPID_PUBLIC_KEY is missing.");
+    if (!vapidPublicKey || !isValidVapidPublicKey(vapidPublicKey)) {
+      setError(
+        "Push configuration is invalid. Ask admin to set a valid NEXT_PUBLIC_VAPID_PUBLIC_KEY."
+      );
       return;
     }
+    const validVapidPublicKey = vapidPublicKey.trim();
     if (!pushReady) {
       setError("Push is not supported in this browser.");
       return;
@@ -144,7 +187,7 @@ export default function NotificationSettingsPage() {
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+          applicationServerKey: base64UrlToUint8Array(validVapidPublicKey),
         });
       }
 
@@ -167,12 +210,161 @@ export default function NotificationSettingsPage() {
 
       setMessage("Push notifications enabled on this device.");
     } catch (pushError) {
+      if (
+        pushError instanceof DOMException &&
+        pushError.message.includes("applicationServerKey is not valid")
+      ) {
+        setError(
+          "Push configuration is invalid on this deployment. Please refresh after VAPID keys are updated."
+        );
+        return;
+      }
       setError(
         pushError instanceof Error ? pushError.message : "Failed to enable push notifications."
       );
     } finally {
       setPushWorking(false);
     }
+  }
+
+  async function addDestination(payload: {
+    channel: "slack" | "discord" | "webhook";
+    name: string;
+    targetUrl: string;
+    secretHeader?: string;
+  }) {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const { error: insertError } = await supabase.from("notification_destinations").insert({
+      workspace_id: state.workspaceId,
+      channel: payload.channel,
+      name: payload.name,
+      target_url: payload.targetUrl,
+      secret_header: payload.secretHeader ?? null,
+      is_enabled: true,
+    });
+    if (insertError) {
+      setError(insertError.message);
+      return;
+    }
+    setMessage("Destination added.");
+    await refreshDestinations(state.workspaceId);
+  }
+
+  async function toggleDestination(destinationId: string, nextEnabled: boolean) {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    setError(null);
+    const { error: updateError } = await supabase
+      .from("notification_destinations")
+      .update({ is_enabled: nextEnabled })
+      .eq("id", destinationId)
+      .eq("workspace_id", state.workspaceId);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setMessage(nextEnabled ? "Destination enabled." : "Destination disabled.");
+    await refreshDestinations(state.workspaceId);
+  }
+
+  async function deleteDestination(destinationId: string) {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    setError(null);
+    const { error: deleteError } = await supabase
+      .from("notification_destinations")
+      .delete()
+      .eq("id", destinationId)
+      .eq("workspace_id", state.workspaceId);
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+    setMessage("Destination removed.");
+    await refreshDestinations(state.workspaceId);
+  }
+
+  async function sendDestinationTest(destinationId: string) {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("You are not signed in.");
+      return;
+    }
+    const response = await fetch("/api/notifications/test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ workspaceId: state.workspaceId, destinationId }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setError(payload.error ?? "Send-test failed.");
+      return;
+    }
+    setMessage("Send-test succeeded.");
+  }
+
+  async function connectGoogleCalendar() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("You are not signed in.");
+      return;
+    }
+    const response = await fetch(
+      `/api/integrations/google/start?workspaceId=${state.workspaceId}`,
+      {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }
+    );
+    const payload = (await response.json().catch(() => ({}))) as { error?: string; url?: string };
+    if (!response.ok || !payload.url) {
+      setError(payload.error ?? "Failed to start Google connect.");
+      return;
+    }
+    window.location.href = payload.url;
+  }
+
+  async function triggerCalendarResync() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("You are not signed in.");
+      return;
+    }
+    const response = await fetch("/api/integrations/google/resync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ workspaceId: state.workspaceId }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setError(payload.error ?? "Calendar re-sync failed.");
+      return;
+    }
+    setMessage("Calendar re-sync started.");
   }
 
   if (state.status === "not_configured") {
@@ -294,6 +486,82 @@ export default function NotificationSettingsPage() {
           <p className="text-muted-foreground text-xs">
             Need higher limits? Manage your plan in <Link href="/settings/billing">billing</Link>.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>External destinations</CardTitle>
+          <CardDescription>
+            Add Slack, Discord, or generic webhook destinations for reminder fan-out.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DestinationForm onCreate={addDestination} />
+          <div className="space-y-2">
+            {destinations.map((destination) => (
+              <div
+                key={destination.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3"
+              >
+                <div className="text-sm">
+                  <p className="font-medium">
+                    {destination.name} ({destination.channel}){" "}
+                    {!destination.is_enabled ? (
+                      <span className="text-muted-foreground font-normal">(disabled)</span>
+                    ) : null}
+                  </p>
+                  <p className="text-muted-foreground text-xs break-all">
+                    {destination.target_url ?? "No URL configured"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!destination.is_enabled}
+                    onClick={() => void sendDestinationTest(destination.id)}
+                  >
+                    Send test
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void toggleDestination(destination.id, !destination.is_enabled)}
+                  >
+                    {destination.is_enabled ? "Disable" : "Enable"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => void deleteDestination(destination.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {destinations.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No external destinations configured.</p>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Calendar</CardTitle>
+          <CardDescription>
+            Sync active subscription renewals to your Google calendar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => void connectGoogleCalendar()}>
+            Connect Google Calendar
+          </Button>
+          <Button variant="outline" onClick={() => void triggerCalendarResync()}>
+            Re-sync events
+          </Button>
         </CardContent>
       </Card>
     </div>

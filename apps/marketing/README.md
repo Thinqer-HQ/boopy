@@ -25,7 +25,10 @@ Default local URL: `http://localhost:3001`
 - `PAYLOAD_API_URL` (e.g. `https://your-payload-domain.com`)
 - `PAYLOAD_API_TOKEN` (optional, for protected globals endpoint)
 - `PAYLOAD_SECRET` (required when using embedded/local Payload in this app)
-- `DATABASE_URI` (e.g. `file:./apps/marketing/payload.db` for local SQLite)
+- `DATABASE_URI` or `DATABASE_URL`
+  - local fallback: `file:./apps/marketing/payload.db` (SQLite)
+  - production recommended: Postgres connection string (Supabase/Neon/etc.)
+- `PAYLOAD_SQLITE_PATH` (optional SQLite path override, e.g. `file:/tmp/payload.db`)
 
 ## Content source (no-code)
 
@@ -57,6 +60,12 @@ This app now includes full Payload + Next.js integration using route groups:
 - REST API: `/api/*`
 - GraphQL API: `/api/graphql`
 - GraphQL Playground: `/api/graphql-playground`
+
+## Important runtime behavior
+
+- Landing content is rendered dynamically (`force-dynamic`) so CMS edits appear immediately.
+- In production, use Postgres (`DATABASE_URI` or `DATABASE_URL`) for persistent CMS data.
+- If no DB connection is configured in production, landing page safely falls back to static defaults.
 
 ## Payload schema starter
 

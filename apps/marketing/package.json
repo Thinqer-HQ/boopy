@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@measured/puck": "^0.20.2",
+    "@payloadcms/db-postgres": "^3.83.0",
     "@payloadcms/db-sqlite": "^3.83.0",
     "@payloadcms/next": "^3.83.0",
     "@payloadcms/richtext-lexical": "^3.83.0",

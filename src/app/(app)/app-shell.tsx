@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { AppHeader } from "@/components/boopy/app-header";
+import { BoopyChatWidget } from "@/components/boopy/boopy-chat-widget";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { WorkspaceSettingsDialog } from "@/components/boopy/workspace-settings-dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
@@ -13,6 +17,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [missingSupabase] = useState(() => !isSupabaseBrowserConfigured());
   const [ready, setReady] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [workspaceSettings, setWorkspaceSettings] = useState<{
+    workspaceId: string;
+    name: string;
+    defaultCurrency: string;
+    setupCompletedAt: string | null;
+  } | null>(null);
   const bootstrapped = useRef(false);
 
   useEffect(() => {
@@ -26,6 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     void (async () => {
+      setBootstrapError(null);
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -44,18 +58,105 @@ export function AppShell({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           bootstrapped.current = false;
+          const payload = (await res.json().catch(() => ({}))) as { error?: string };
+          setBootstrapError(payload.error ?? "Failed to prepare workspace.");
+          return;
         }
       }
 
+      const settingsResponse = await fetch("/api/workspace/settings", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      if (settingsResponse.ok) {
+        const settingsPayload = (await settingsResponse.json()) as {
+          workspace?: {
+            id: string;
+            name: string;
+            defaultCurrency: string;
+            setupCompletedAt: string | null;
+          };
+        };
+        if (settingsPayload.workspace) {
+          setWorkspaceSettings({
+            workspaceId: settingsPayload.workspace.id,
+            name: settingsPayload.workspace.name,
+            defaultCurrency: settingsPayload.workspace.defaultCurrency,
+            setupCompletedAt: settingsPayload.workspace.setupCompletedAt,
+          });
+          if (!settingsPayload.workspace.setupCompletedAt) {
+            setSettingsOpen(true);
+          }
+        }
+      }
       setReady(true);
     })();
   }, [missingSupabase, router]);
+
+  async function saveWorkspaceSettings(input: { name: string; defaultCurrency: string }) {
+    const supabase = getSupabaseBrowser();
+    if (!supabase || !workspaceSettings) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+
+    setSettingsSaving(true);
+    const response = await fetch("/api/workspace/settings", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        workspaceId: workspaceSettings.workspaceId,
+        name: input.name,
+        defaultCurrency: input.defaultCurrency,
+        markSetupComplete: true,
+      }),
+    });
+    setSettingsSaving(false);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setBootstrapError(payload.error ?? "Failed to save workspace settings.");
+      return;
+    }
+    const payload = (await response.json()) as {
+      workspace: {
+        id: string;
+        name: string;
+        defaultCurrency: string;
+        setupCompletedAt: string | null;
+      };
+    };
+    setWorkspaceSettings({
+      workspaceId: payload.workspace.id,
+      name: payload.workspace.name,
+      defaultCurrency: payload.workspace.defaultCurrency,
+      setupCompletedAt: payload.workspace.setupCompletedAt,
+    });
+    setSettingsOpen(false);
+  }
 
   if (missingSupabase) {
     return <MissingSupabaseConfig />;
   }
 
   if (!ready) {
+    if (bootstrapError) {
+      return (
+        <div className="mx-auto w-full max-w-2xl p-8">
+          <Alert variant="destructive">
+            <AlertTitle>Could not initialize workspace</AlertTitle>
+            <AlertDescription>{bootstrapError}</AlertDescription>
+          </Alert>
+          <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
+            Retry
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="bg-muted/30 flex min-h-svh flex-1 flex-col">
         <div className="bg-background/80 border-b px-4 py-3 backdrop-blur md:px-6">
@@ -107,6 +208,21 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="bg-muted/30 flex min-h-svh flex-1 flex-col">
       <AppHeader />
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col">{children}</div>
+      <BoopyChatWidget workspaceId={workspaceSettings?.workspaceId ?? null} />
+      {workspaceSettings ? (
+        <WorkspaceSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          title="Welcome to Boopy - Set your workspace defaults"
+          description="Set your workspace name and default currency first. You can change these anytime from the top-right quick settings button."
+          initialName={workspaceSettings.name}
+          initialCurrency={workspaceSettings.defaultCurrency}
+          forceOpen={!workspaceSettings.setupCompletedAt}
+          saving={settingsSaving}
+          saveLabel="Save and continue"
+          onSave={saveWorkspaceSettings}
+        />
+      ) : null}
     </div>
   );
 }

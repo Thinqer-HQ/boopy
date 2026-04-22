@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:marketing": "npm run dev --workspace @boopy/marketing",
+    "dev:chat": "npm run dev --workspace @boopy/chat",
     "build": "next build",
     "build:marketing": "npm run build --workspace @boopy/marketing",
+    "build:chat": "npm run build --workspace @boopy/chat",
     "start": "next start",
     "start:marketing": "npm run start --workspace @boopy/marketing",
     "lint": "eslint .",
@@ -28,7 +30,9 @@
     ]
   },
   "dependencies": {
+    "@ai-sdk/openai": "^1.3.24",
     "@base-ui/react": "^1.4.0",
+    "ai": "^4.3.19",
     "@supabase/supabase-js": "^2.103.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

@@ -50,7 +50,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Bootstrap failed" }, { status: 500 });
     }
 
-    await supabase.from("clients").insert({ workspace_id: ws.id, name: "Me" });
+    // Group-first default container (kept generic for personal and agency use).
+    await supabase.from("groups").insert({ workspace_id: ws.id, name: "General" });
+    // Backward-compatible legacy client seed while old routes are still reachable.
+    await supabase.from("clients").insert({ workspace_id: ws.id, name: "General" });
     await supabase.from("notification_prefs").insert({ workspace_id: ws.id });
 
     log.info("bootstrap_created_personal_workspace", {

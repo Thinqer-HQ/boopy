@@ -2,10 +2,14 @@ import { chromium } from "playwright";
 
 const baseUrl = process.env.CRAWL_BASE_URL ?? "http://localhost:3100";
 const maxPages = Number.parseInt(process.env.CRAWL_MAX_PAGES ?? "20", 10);
+const crawlEmail = process.env.CRAWL_EMAIL;
+const crawlPassword = process.env.CRAWL_PASSWORD;
 const seedPaths = [
   "/",
   "/login",
-  "/clients",
+  "/groups",
+  "/reports",
+  "/documents",
   "/settings/notifications",
   "/settings/billing",
 ];
@@ -25,6 +29,18 @@ function normalizeUrl(url) {
 async function crawl() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
+
+  if (crawlEmail && crawlPassword) {
+    const loginPage = await context.newPage();
+    await loginPage.goto(normalizeUrl("/login"), { waitUntil: "networkidle" });
+    await loginPage.fill('input[type="email"]', crawlEmail);
+    await loginPage.fill('input[type="password"]', crawlPassword);
+    await Promise.all([
+      loginPage.waitForNavigation({ waitUntil: "networkidle" }),
+      loginPage.click('button[type="submit"]'),
+    ]);
+    await loginPage.close();
+  }
 
   const queue = [...new Set(seedPaths.map((path) => normalizeUrl(path)).filter(Boolean))];
   const visited = new Set();

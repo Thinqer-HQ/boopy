@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,11 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser";
 
 export default function BillingSettingsPage() {
   const searchParams = useSearchParams();
-  const { state } = usePrimaryWorkspace();
+  const { state, reload } = usePrimaryWorkspace();
   const workspaceId = state.status === "ready" ? state.workspaceId : null;
   const billing = useWorkspaceBilling(workspaceId);
   const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkoutResult = useMemo(() => searchParams.get("checkout"), [searchParams]);
@@ -68,10 +70,86 @@ export default function BillingSettingsPage() {
     window.location.href = payload.checkoutUrl;
   }
 
-  if (state.status !== "ready") {
-    if (state.status === "schema_not_ready") {
-      return <SchemaNotReady details={state.details} />;
+  async function openPortal() {
+    if (!workspaceId) return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+
+    setLoadingPortal(true);
+    setError(null);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      setLoadingPortal(false);
+      setError("Sign in again before opening the billing portal.");
+      return;
     }
+
+    const response = await fetch("/api/stripe/portal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ workspaceId }),
+    });
+
+    setLoadingPortal(false);
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      setError(payload.error ?? "Failed to open Stripe billing portal.");
+      return;
+    }
+
+    const payload = (await response.json()) as { portalUrl?: string };
+    if (!payload.portalUrl) {
+      setError("Stripe portal URL missing.");
+      return;
+    }
+
+    window.location.href = payload.portalUrl;
+  }
+
+  if (state.status === "not_configured") {
+    return <MissingSupabaseConfig />;
+  }
+
+  if (state.status === "schema_not_ready") {
+    return <SchemaNotReady details={state.details} />;
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="p-8">
+        <Alert variant="destructive">
+          <AlertTitle>Could not load workspace</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+        <Button className="mt-4" variant="outline" onClick={() => void reload()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (state.status === "empty") {
+    return (
+      <div className="p-8">
+        <Alert>
+          <AlertTitle>No workspace yet</AlertTitle>
+          <AlertDescription>
+            Open dashboard once while signed in so Boopy can create your personal workspace.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (state.status !== "ready") {
     return <div className="text-muted-foreground p-8 text-sm">Loading billing…</div>;
   }
 
@@ -139,6 +217,12 @@ export default function BillingSettingsPage() {
                 {capabilities.pushEnabled ? "Enabled" : "Not included"}
               </span>
             </p>
+            <p>
+              Boopy Assistant (AI):{" "}
+              <span className="font-medium">
+                {capabilities.boopyAssistant ? "Included" : "Pro only"}
+              </span>
+            </p>
           </CardContent>
         </Card>
 
@@ -146,7 +230,9 @@ export default function BillingSettingsPage() {
           <CardHeader>
             <CardTitle>Boopy Pro</CardTitle>
             <CardDescription>
-              Unlimited clients and subscriptions with full reminder coverage.
+              Unlimited clients and subscriptions, push reminders, and the in-app Boopy Assistant
+              that can act on your workspace (powered by the Vercel AI SDK and your configured model
+              provider).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -163,6 +249,9 @@ export default function BillingSettingsPage() {
                 : loadingCheckout
                   ? "Opening checkout…"
                   : "Upgrade to Pro"}
+            </Button>
+            <Button variant="outline" disabled={loadingPortal} onClick={() => void openPortal()}>
+              {loadingPortal ? "Opening portal…" : "Manage billing in Stripe"}
             </Button>
           </CardContent>
         </Card>

@@ -46,6 +46,11 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: requiredNonEmptyInStrict,
   STRIPE_PRICE_PRO_MONTHLY: requiredNonEmptyInStrict,
 
+  // Google Calendar
+  GOOGLE_CLIENT_ID: requiredNonEmptyInStrict,
+  GOOGLE_CLIENT_SECRET: requiredNonEmptyInStrict,
+  GOOGLE_REDIRECT_URI: requiredUrlInStrict,
+
   // PostHog
   NEXT_PUBLIC_POSTHOG_KEY: requiredNonEmptyInStrict,
   NEXT_PUBLIC_POSTHOG_HOST: strictEnv

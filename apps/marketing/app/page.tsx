@@ -1,5 +1,15 @@
 import { getMarketingContent } from "@/lib/payload";
 
+export const dynamic = "force-dynamic";
+
+const AUDIENCE_TICKER_LABELS = [
+  "PERSONAL",
+  "GROUPS",
+  "AGENCIES",
+  "BUSINESSES",
+  "OPERATIONS TEAMS",
+] as const;
+
 export default async function MarketingHomePage() {
   const content = await getMarketingContent();
   const visibleFaqs = content.faqs.filter(
@@ -68,18 +78,21 @@ export default async function MarketingHomePage() {
           </div>
         </section>
 
-        <section className="section reveal-up">
+        <section className="section reveal-up ticker-section">
           <div className="ticker-wrap">
-            <div className="ticker">
-              <span>PERSONAL</span>
-              <span>GROUPS</span>
-              <span>AGENCIES</span>
-              <span>BUSINESSES</span>
-              <span>OPERATIONS TEAMS</span>
-              <span>PERSONAL</span>
-              <span>GROUPS</span>
-              <span>AGENCIES</span>
-              <span>BUSINESSES</span>
+            <div className="ticker-viewport">
+              <div className="ticker-track">
+                {AUDIENCE_TICKER_LABELS.map((label) => (
+                  <span key={`a-${label}`} className="ticker-item">
+                    {label}
+                  </span>
+                ))}
+                {AUDIENCE_TICKER_LABELS.map((label) => (
+                  <span key={`b-${label}`} className="ticker-item" aria-hidden="true">
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </section>

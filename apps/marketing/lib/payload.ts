@@ -355,6 +355,7 @@ function normalizeMarketingContent(data: PayloadGlobalResponse | undefined): Mar
 export async function getMarketingContent(): Promise<MarketingContent> {
   const payloadUrl = process.env.PAYLOAD_API_URL?.trim();
   const payloadToken = process.env.PAYLOAD_API_TOKEN?.trim();
+  const dbConnection = process.env.DATABASE_URI || process.env.DATABASE_URL;
 
   if (payloadUrl) {
     try {
@@ -373,6 +374,10 @@ export async function getMarketingContent(): Promise<MarketingContent> {
     } catch {
       return fallbackContent;
     }
+  }
+
+  if (process.env.NODE_ENV === "production" && !dbConnection) {
+    return fallbackContent;
   }
 
   try {

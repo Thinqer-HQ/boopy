@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canCreateClient,
   canCreateSubscription,
+  canUseBoopyAssistant,
   getPlanCapabilities,
   resolvePlan,
   type WorkspacePlan,
@@ -25,12 +26,16 @@ describe("plan capabilities", () => {
     const caps = getPlanCapabilities("free");
     expect(caps.maxClients).toBe(3);
     expect(caps.maxSubscriptions).toBe(30);
+    expect(caps.maxDocumentBatchUpload).toBe(1);
+    expect(caps.boopyAssistant).toBe(false);
   });
 
   it("pro plan has effectively no limits", () => {
     const caps = getPlanCapabilities("pro");
     expect(caps.maxClients).toBeGreaterThan(1000);
     expect(caps.maxSubscriptions).toBeGreaterThan(1000);
+    expect(caps.maxDocumentBatchUpload).toBeGreaterThan(1);
+    expect(caps.boopyAssistant).toBe(true);
   });
 });
 
@@ -41,5 +46,10 @@ describe("gating checks", () => {
     expect(canCreateClient(plan, 3)).toBe(false);
     expect(canCreateSubscription(plan, 29)).toBe(true);
     expect(canCreateSubscription(plan, 30)).toBe(false);
+  });
+
+  it("reserves Boopy Assistant for Pro", () => {
+    expect(canUseBoopyAssistant("free")).toBe(false);
+    expect(canUseBoopyAssistant("pro")).toBe(true);
   });
 });
