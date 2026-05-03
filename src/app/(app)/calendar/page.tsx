@@ -411,11 +411,11 @@ export default function CalendarPage() {
         </Alert>
       ) : null}
 
-      <Card>
+      <Card className="overflow-visible">
         <CardHeader>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Calendar</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
@@ -458,10 +458,10 @@ export default function CalendarPage() {
             <Badge variant="outline">Today highlighted</Badge>
           </div>
           <p className="text-muted-foreground mb-3 text-xs sm:hidden">
-            Tap a day for details. Pinch or scroll the calendar horizontally if needed.
+            Scroll sideways for full week. Tap a day for details.
           </p>
-          <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:overflow-visible sm:px-0">
-            <div className="min-w-[min(100%,520px)] sm:min-w-0">
+          <div className="-mx-2 overflow-x-auto overscroll-x-contain px-2 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="w-full min-w-[36rem] sm:min-w-0">
               <div className="grid grid-cols-7 gap-1 text-[10px] font-medium sm:gap-2 sm:text-xs">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
                   const short = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][i] ?? day.slice(0, 2);
@@ -495,11 +495,11 @@ export default function CalendarPage() {
                           setSelectedDay(key);
                         }
                       }}
-                      className={`min-h-24 rounded-lg border p-1.5 text-left transition-colors sm:min-h-28 sm:p-2 ${
+                      className={`flex min-h-[5.25rem] min-w-0 flex-col overflow-hidden rounded-lg border p-1 text-left transition-colors sm:min-h-28 sm:p-2 ${
                         isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/30"
                       } ${isToday ? "ring-primary/40 ring-2" : ""} ${isSelected ? "border-primary bg-primary/5" : ""}`}
                     >
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center justify-between gap-1">
                         <p
                           className={`rounded px-1.5 py-0.5 text-xs font-semibold ${isCurrentMonth ? "" : "text-muted-foreground"} ${
                             isSelected ? "bg-primary text-primary-foreground" : ""
@@ -524,7 +524,7 @@ export default function CalendarPage() {
                           />
                         ) : null}
                       </div>
-                      <div className="mt-1 space-y-1">
+                      <div className="mt-1 min-h-0 min-w-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain sm:overflow-y-visible">
                         {events.slice(0, 3).map((event) => {
                           const group = first(event.groups);
                           return (
@@ -532,12 +532,17 @@ export default function CalendarPage() {
                               key={event.id}
                               className="rounded border-l-4 border-indigo-400 bg-indigo-50/70 p-1 dark:bg-indigo-950/30"
                             >
-                              <p className="truncate text-xs font-medium">{event.vendor_name}</p>
-                              <div className="flex items-center justify-between gap-1">
-                                <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                              <p className="line-clamp-2 text-[10px] leading-tight font-medium break-words sm:line-clamp-none sm:truncate sm:text-xs">
+                                {event.vendor_name}
+                              </p>
+                              <div className="mt-0.5 flex min-w-0 items-center justify-between gap-1">
+                                <Badge
+                                  variant="outline"
+                                  className="h-auto max-w-[min(100%,5rem)] shrink truncate px-1 py-0 text-[9px] leading-tight sm:h-4 sm:max-w-none sm:text-[10px]"
+                                >
                                   {group?.name ?? "Unknown"}
                                 </Badge>
-                                <span className="text-[10px]">
+                                <span className="shrink-0 text-[9px] sm:text-[10px]">
                                   {formatCurrency(Number(event.amount ?? 0), event.currency)}
                                 </span>
                               </div>

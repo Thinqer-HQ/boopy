@@ -464,10 +464,10 @@ export default function SubscriptionsCardsPage() {
           const isOpen = expanded[group.groupId] ?? true;
           const activeCount = group.subscriptions.filter((sub) => sub.status === "active").length;
           return (
-            <Card key={group.groupId} className="overflow-hidden">
+            <Card key={group.groupId} className="overflow-visible">
               <CardHeader className="bg-muted/30">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="w-full min-w-0">
                     {(() => {
                       const groupBuckets = calculateTotalsByCurrency(
                         group.subscriptions.map((subscription) => ({
@@ -480,12 +480,12 @@ export default function SubscriptionsCardsPage() {
                       return (
                         <>
                           <CardTitle className="text-lg">
-                            {group.groupName}
-                            <span className="text-muted-foreground ml-2 text-sm font-normal">
+                            <span className="block break-words">{group.groupName}</span>
+                            <span className="text-muted-foreground mt-1 block text-sm font-normal sm:mt-0 sm:ml-2 sm:inline">
                               {formatCurrencyBucketsInline(groupBuckets, "monthly")} monthly
                             </span>
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="mt-1">
                             {group.subscriptions.length} subscription
                             {group.subscriptions.length === 1 ? "" : "s"} • {activeCount} active •{" "}
                             {formatCurrencyBucketsInline(groupBuckets, "yearly")} yearly
@@ -494,10 +494,11 @@ export default function SubscriptionsCardsPage() {
                       );
                     })()}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex w-full flex-shrink-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="min-h-10 shrink-0 touch-manipulation"
                       onClick={() => router.push(`/calendar?groupId=${group.groupId}`)}
                     >
                       <CalendarDays className="size-4" />
@@ -506,6 +507,7 @@ export default function SubscriptionsCardsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="min-h-10 shrink-0 touch-manipulation"
                       onClick={() => router.push(`/reports?groupId=${group.groupId}`)}
                     >
                       Reports
@@ -513,6 +515,7 @@ export default function SubscriptionsCardsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="min-h-10 shrink-0 touch-manipulation"
                       onClick={() => openAddDialog(group.groupId)}
                     >
                       <Plus className="size-4" />
@@ -521,6 +524,7 @@ export default function SubscriptionsCardsPage() {
                     <Button
                       variant="outline"
                       size="sm"
+                      className="min-h-10 shrink-0 touch-manipulation"
                       onClick={() =>
                         setExpanded((current) => ({ ...current, [group.groupId]: !isOpen }))
                       }
