@@ -53,6 +53,40 @@ function monthMatchesCadence(monthsSince: number, cadence: SubscriptionCadence):
   return monthsSince % period === 0;
 }
 
+/** Optional inclusive YYYY-MM-DD clamps on generated billing dates. */
+export type RecurrenceBounds = {
+  startDateYmd?: string | null;
+  endDateYmd?: string | null;
+};
+
+export function recurrenceBoundsFromNullable(
+  startDateYmd: string | null | undefined,
+  endDateYmd: string | null | undefined
+): RecurrenceBounds | null {
+  if (!startDateYmd?.trim() && !endDateYmd?.trim()) return null;
+  return {
+    startDateYmd: startDateYmd?.trim() || undefined,
+    endDateYmd: endDateYmd?.trim() || undefined,
+  };
+}
+
+function compareDayKeys(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
+function clampKeysToBounds(keys: string[], bounds?: RecurrenceBounds | null): string[] {
+  if (!bounds?.startDateYmd && !bounds?.endDateYmd) return keys;
+  const start = bounds.startDateYmd?.trim();
+  const end = bounds.endDateYmd?.trim();
+  return keys.filter((k) => {
+    if (start && compareDayKeys(k, start) < 0) return false;
+    if (end && compareDayKeys(k, end) > 0) return false;
+    return true;
+  });
+}
+
 /**
  * All YYYY-MM-DD occurrence keys in [rangeStart, rangeEnd] (inclusive, UTC date boundaries).
  */
@@ -60,7 +94,8 @@ export function recurrenceOccurrenceDayKeysInUtcRange(
   renewalDateYmd: string,
   cadence: SubscriptionCadence,
   rangeStartInclusiveUtc: Date,
-  rangeEndInclusiveUtc: Date
+  rangeEndInclusiveUtc: Date,
+  bounds?: RecurrenceBounds | null
 ): string[] {
   const anchor = parseRenewalYmd(renewalDateYmd);
   if (!anchor) return [];
@@ -68,7 +103,9 @@ export function recurrenceOccurrenceDayKeysInUtcRange(
   if (cadence === "custom") {
     const key = formatUtcDayKey(anchor.y, anchor.m, anchor.d);
     const occ = new Date(`${key}T00:00:00.000Z`);
-    if (occ >= rangeStartInclusiveUtc && occ <= rangeEndInclusiveUtc) return [key];
+    if (occ >= rangeStartInclusiveUtc && occ <= rangeEndInclusiveUtc) {
+      return clampKeysToBounds([key], bounds);
+    }
     return [];
   }
 
@@ -97,7 +134,7 @@ export function recurrenceOccurrenceDayKeysInUtcRange(
     }
   }
 
-  return out;
+  return clampKeysToBounds(out, bounds);
 }
 
 /**
@@ -106,13 +143,14 @@ export function recurrenceOccurrenceDayKeysInUtcRange(
 export function recurrenceTouchesDaySet(
   renewalDateYmd: string,
   cadence: SubscriptionCadence,
-  dayKeys: Set<string>
+  dayKeys: Set<string>,
+  bounds?: RecurrenceBounds | null
 ): boolean {
   if (dayKeys.size === 0) return false;
   for (const key of dayKeys) {
     const d = new Date(`${key}T00:00:00.000Z`);
     if (!Number.isFinite(d.getTime())) continue;
-    const keys = recurrenceOccurrenceDayKeysInUtcRange(renewalDateYmd, cadence, d, d);
+    const keys = recurrenceOccurrenceDayKeysInUtcRange(renewalDateYmd, cadence, d, d, bounds);
     if (keys.length > 0) return true;
   }
   return false;
@@ -124,7 +162,8 @@ export function recurrenceTouchesDaySet(
 export function recurrenceTouchesMonth(
   renewalDateYmd: string,
   cadence: SubscriptionCadence,
-  monthYyyymm: string
+  monthYyyymm: string,
+  bounds?: RecurrenceBounds | null
 ): boolean {
   const trimmed = monthYyyymm.trim();
   if (!/^\d{4}-\d{2}$/.test(trimmed)) return false;
@@ -132,7 +171,7 @@ export function recurrenceTouchesMonth(
   const y = start.getUTCFullYear();
   const m = start.getUTCMonth();
   const end = new Date(Date.UTC(y, m + 1, 0));
-  const keys = recurrenceOccurrenceDayKeysInUtcRange(renewalDateYmd, cadence, start, end);
+  const keys = recurrenceOccurrenceDayKeysInUtcRange(renewalDateYmd, cadence, start, end, bounds);
   return keys.length > 0;
 }
 
@@ -140,10 +179,28 @@ export function recurrenceTouchesMonth(
 export function nextOccurrenceDayKeyOnOrAfter(
   renewalDateYmd: string,
   cadence: SubscriptionCadence,
-  onOrAfterUtc: Date
+  onOrAfterUtc: Date,
+  bounds?: RecurrenceBounds | null
 ): string | null {
+  const endYmd = bounds?.endDateYmd?.trim();
+  if (endYmd) {
+    const endClamp = new Date(`${endYmd}T23:59:59.999Z`);
+    if (onOrAfterUtc > endClamp) return null;
+  }
   const end = new Date(onOrAfterUtc);
   end.setUTCFullYear(end.getUTCFullYear() + 2);
-  const keys = recurrenceOccurrenceDayKeysInUtcRange(renewalDateYmd, cadence, onOrAfterUtc, end);
+  if (endYmd) {
+    const endCap = new Date(`${endYmd}T23:59:59.999Z`);
+    if (end > endCap) {
+      end.setTime(endCap.getTime());
+    }
+  }
+  const keys = recurrenceOccurrenceDayKeysInUtcRange(
+    renewalDateYmd,
+    cadence,
+    onOrAfterUtc,
+    end,
+    bounds
+  );
   return keys[0] ?? null;
 }

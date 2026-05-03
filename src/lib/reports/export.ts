@@ -12,6 +12,8 @@ export type ReportExportRow = {
   currency: string;
   amount: number;
   monthlyAmount: number;
+  startDate: string;
+  endDate: string;
 };
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -41,10 +43,13 @@ export function buildReportRows(subscriptions: ReportSubscription[]): ReportExpo
       cadence: subscription.cadence,
       currency: subscription.currency,
       amount,
+      startDate: subscription.start_date?.trim() || "",
+      endDate: subscription.end_date?.trim() || "",
       monthlyAmount: toMonthlyAmount({
         amount,
         cadence: subscription.cadence,
         status: subscription.status,
+        termEndDateYmd: subscription.end_date,
       }),
     };
   });
@@ -78,6 +83,8 @@ export function buildReportsCsv(rows: ReportExportRow[]) {
     "cadence",
     "currency",
     "amount",
+    "start_date",
+    "end_date",
     "monthly_amount",
   ];
   const lines = [headers.join(",")];
@@ -93,6 +100,8 @@ export function buildReportsCsv(rows: ReportExportRow[]) {
         row.cadence,
         row.currency,
         row.amount,
+        row.startDate,
+        row.endDate,
         row.monthlyAmount,
       ]
         .map(csvEscape)

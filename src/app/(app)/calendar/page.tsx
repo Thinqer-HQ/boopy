@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { formatCurrency } from "@/lib/reports/spend";
 import {
+  recurrenceBoundsFromNullable,
   recurrenceOccurrenceDayKeysInUtcRange,
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
@@ -33,6 +34,8 @@ type SubscriptionRow = {
   currency: string;
   cadence: SubscriptionCadence;
   renewal_date: string;
+  start_date: string | null;
+  end_date: string | null;
   status: "active" | "paused" | "cancelled";
   groups: { id: string; name: string } | Array<{ id: string; name: string }> | null;
 };
@@ -92,7 +95,7 @@ export default function CalendarPage() {
       const { data, error: loadError } = await supabase
         .from("subscriptions")
         .select(
-          "id, vendor_name, amount, currency, cadence, renewal_date, status, groups!inner(id, name, workspace_id)"
+          "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, groups!inner(id, name, workspace_id)"
         )
         .eq("groups.workspace_id", state.workspaceId)
         .order("renewal_date", { ascending: true });
@@ -166,11 +169,13 @@ export default function CalendarPage() {
     const rangeStart = calendarDays[0]!;
     const rangeEnd = calendarDays[calendarDays.length - 1]!;
     for (const subscription of visibleSubscriptions) {
+      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
       const dayKeys = recurrenceOccurrenceDayKeysInUtcRange(
         subscription.renewal_date,
         subscription.cadence,
         rangeStart,
-        rangeEnd
+        rangeEnd,
+        bounds
       );
       for (const key of dayKeys) {
         if (!map.has(key)) map.set(key, []);

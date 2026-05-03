@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { calculateTotals, calculateTotalsByCurrency, toMonthlyAmount } from "@/lib/reports/spend";
 
@@ -34,5 +34,27 @@ describe("reports spend helpers", () => {
       { currency: "PHP", monthly: 100, yearly: 1200 },
       { currency: "USD", monthly: 25, yearly: 300 },
     ]);
+  });
+
+  it("excludes active subs after term end (UTC day) from monthly spend", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-15T12:00:00.000Z"));
+    expect(
+      toMonthlyAmount({
+        amount: 10,
+        cadence: "monthly",
+        status: "active",
+        termEndDateYmd: "2026-06-14",
+      })
+    ).toBe(0);
+    expect(
+      toMonthlyAmount({
+        amount: 10,
+        cadence: "monthly",
+        status: "active",
+        termEndDateYmd: "2026-06-15",
+      })
+    ).toBe(10);
+    vi.useRealTimers();
   });
 });

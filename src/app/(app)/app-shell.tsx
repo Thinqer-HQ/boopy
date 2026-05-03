@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { AppHeader } from "@/components/boopy/app-header";
 import { BoopyChatWidget } from "@/components/boopy/boopy-chat-widget";
+import { BoopyRoadmapWidget } from "@/components/boopy/roadmap-widget";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { WorkspaceSettingsDialog } from "@/components/boopy/workspace-settings-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -208,6 +209,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="bg-muted/30 flex min-h-svh flex-1 flex-col">
       <AppHeader />
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col pb-24 sm:pb-16">{children}</div>
+      <div className="pointer-events-none fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(4.75rem,calc(3.5rem+env(safe-area-inset-bottom)))] z-40 flex flex-col items-end sm:right-5 sm:bottom-[max(5.25rem,calc(4rem+env(safe-area-inset-bottom)))] md:right-6 md:bottom-[max(5.5rem,calc(4.25rem+env(safe-area-inset-bottom)))]">
+        <BoopyRoadmapWidget />
+      </div>
       <BoopyChatWidget workspaceId={workspaceSettings?.workspaceId ?? null} />
       {workspaceSettings ? (
         <WorkspaceSettingsDialog

@@ -18,6 +18,7 @@ type SubscriptionRow = {
   id: string;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
+  end_date: string | null;
   groups: { workspace_id: string } | Array<{ workspace_id: string }> | null;
 };
 
@@ -157,14 +158,16 @@ export async function GET(request: Request) {
     ])
   );
 
+  const todayYmd = new Date().toISOString().slice(0, 10);
   const { data: subscriptionRows, error: subscriptionsError } = await supabase
     .from("subscriptions")
-    .select("id, renewal_date, status, groups!inner(workspace_id)")
+    .select("id, renewal_date, status, end_date, groups!inner(workspace_id)")
     .eq("status", "active")
     .lte(
       "renewal_date",
       new Date(now.getTime() + 1000 * 60 * 60 * 24 * 45).toISOString().slice(0, 10)
-    );
+    )
+    .or(`end_date.is.null,end_date.gte.${todayYmd}`);
   if (subscriptionsError) {
     return NextResponse.json({ error: "Failed to load subscriptions" }, { status: 500 });
   }
@@ -175,11 +178,14 @@ export async function GET(request: Request) {
       .map((row) => {
         const group = first(row.groups);
         if (!group?.workspace_id) return null;
+        const termEnd = row.end_date?.trim() ?? null;
+        if (termEnd && row.renewal_date > termEnd) return null;
         return {
           id: row.id,
           workspaceId: group.workspace_id,
           renewalDate: row.renewal_date,
           status: row.status,
+          termEndDateYmd: termEnd,
         };
       })
       .filter((value): value is NonNullable<typeof value> => value !== null),

@@ -6,6 +6,8 @@ export type SchedulingSubscription = {
   workspaceId: string;
   renewalDate: string; // YYYY-MM-DD
   status: SubscriptionStatus;
+  /** Last billing day (YYYY-MM-DD); no reminders for renewals after this. */
+  termEndDateYmd?: string | null;
 };
 
 export type SchedulingPrefs = {
@@ -74,6 +76,9 @@ export function collectDueNotificationPlans(args: {
     if (leadTimes.length === 0) continue;
 
     const renewalUtc = dateAtUtcMidnight(subscription.renewalDate);
+    const termEnd = subscription.termEndDateYmd?.trim();
+    if (termEnd && subscription.renewalDate > termEnd) continue;
+
     const channels: NotificationChannel[] = [];
     if (prefs.emailEnabled) channels.push("email");
     if (prefs.pushEnabled) channels.push("push");

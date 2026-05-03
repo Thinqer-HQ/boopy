@@ -3,8 +3,10 @@ import {
   refreshGoogleAccessToken,
   upsertGoogleEvent,
 } from "@/lib/calendar/google";
+import { utcTodayYmd } from "@/lib/reports/spend";
 import { supabaseService } from "@/lib/supabase/server";
 import {
+  recurrenceBoundsFromNullable,
   recurrenceTouchesDaySet,
   recurrenceTouchesMonth,
   nextOccurrenceDayKeyOnOrAfter,
@@ -27,6 +29,8 @@ type SubscriptionRow = {
   cadence: SubscriptionCadence;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
+  start_date: string | null;
+  end_date: string | null;
   groups: { name: string } | Array<{ name: string }> | null;
 };
 
@@ -49,20 +53,20 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 }
 
 function matchesSyncSelection(
-  renewalDate: string,
-  cadence: SubscriptionCadence,
+  subscription: Pick<SubscriptionRow, "renewal_date" | "cadence" | "start_date" | "end_date">,
   selection?: CalendarSyncSelection
 ) {
+  const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
   const scope = selection?.scope ?? "all";
   if (scope === "all") return true;
   if (scope === "month") {
     const month = selection?.month?.trim();
     if (!month) return true;
-    return recurrenceTouchesMonth(renewalDate, cadence, month);
+    return recurrenceTouchesMonth(subscription.renewal_date, subscription.cadence, month, bounds);
   }
   if (scope === "days") {
     const days = new Set((selection?.dates ?? []).map((value) => value.trim()).filter(Boolean));
-    return recurrenceTouchesDaySet(renewalDate, cadence, days);
+    return recurrenceTouchesDaySet(subscription.renewal_date, subscription.cadence, days, bounds);
   }
   return true;
 }
@@ -124,7 +128,9 @@ export async function syncWorkspaceCalendar(
   const [{ data: subscriptions }, { data: mappedEvents }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("id, vendor_name, amount, currency, cadence, renewal_date, status, groups(name)")
+      .select(
+        "id, vendor_name, amount, currency, cadence, renewal_date, status, start_date, end_date, groups(name)"
+      )
       .eq("status", "active")
       .eq("groups.workspace_id", workspaceId),
     supabase
@@ -139,13 +145,23 @@ export async function syncWorkspaceCalendar(
     eventBySubscription.set(row.subscription_id, row.external_event_id);
   }
 
+  const today = utcTodayYmd();
   for (const subscription of (subscriptions ?? []) as SubscriptionRow[]) {
-    if (!matchesSyncSelection(subscription.renewal_date, subscription.cadence, selection)) {
+    const termEnd = subscription.end_date?.trim();
+    if (termEnd && termEnd < today) {
       continue;
     }
+    if (!matchesSyncSelection(subscription, selection)) {
+      continue;
+    }
+    const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
     const billingDate =
-      nextOccurrenceDayKeyOnOrAfter(subscription.renewal_date, subscription.cadence, new Date()) ??
-      subscription.renewal_date;
+      nextOccurrenceDayKeyOnOrAfter(
+        subscription.renewal_date,
+        subscription.cadence,
+        new Date(),
+        bounds
+      ) ?? subscription.renewal_date;
     const { title, description } = calendarEventCopy(subscription, billingDate);
     let upserted;
     try {
@@ -229,11 +245,19 @@ async function pruneInactiveGoogleEvents(args: {
 
   const { data: workspaceSubs } = await supabase
     .from("subscriptions")
-    .select("id, status, groups!inner(workspace_id)")
+    .select("id, status, end_date, groups!inner(workspace_id)")
     .eq("groups.workspace_id", workspaceId);
 
+  const today = utcTodayYmd();
   const activeIds = new Set(
-    (workspaceSubs ?? []).filter((row) => row.status === "active").map((row) => row.id as string)
+    (workspaceSubs ?? [])
+      .filter((row) => {
+        if (row.status !== "active") return false;
+        const termEnd = (row as { end_date?: string | null }).end_date?.trim();
+        if (termEnd && termEnd < today) return false;
+        return true;
+      })
+      .map((row) => row.id as string)
   );
 
   for (const row of (mappings ?? []) as { subscription_id: string; external_event_id: string }[]) {

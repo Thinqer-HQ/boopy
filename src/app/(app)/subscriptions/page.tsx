@@ -33,6 +33,8 @@ type SubscriptionRow = {
   currency: string;
   cadence: "monthly" | "yearly" | "quarterly" | "custom";
   renewal_date: string;
+  start_date: string | null;
+  end_date: string | null;
   status: "active" | "paused" | "cancelled";
   category: string | null;
   notes: string | null;
@@ -52,6 +54,14 @@ function cadenceLabel(cadence: SubscriptionRow["cadence"]) {
   return "Custom";
 }
 
+function termDateError(startYmd: string, endYmd: string): string | null {
+  const s = startYmd.trim();
+  const e = endYmd.trim();
+  if (!s || !e) return null;
+  if (e < s) return "End date must be on or after the start date.";
+  return null;
+}
+
 export default function SubscriptionsCardsPage() {
   const router = useRouter();
   const { state } = usePrimaryWorkspace();
@@ -69,6 +79,8 @@ export default function SubscriptionsCardsPage() {
   const [currency, setCurrency] = useState("USD");
   const [cadence, setCadence] = useState<"monthly" | "yearly" | "quarterly" | "custom">("monthly");
   const [renewalDate, setRenewalDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<SubscriptionRow["status"]>("active");
@@ -87,7 +99,7 @@ export default function SubscriptionsCardsPage() {
       supabase
         .from("subscriptions")
         .select(
-          "id, vendor_name, amount, currency, cadence, renewal_date, status, category, notes, groups!inner(id, name, workspace_id)"
+          "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, category, notes, groups!inner(id, name, workspace_id)"
         )
         .eq("groups.workspace_id", state.workspaceId)
         .order("renewal_date", { ascending: true }),
@@ -167,6 +179,7 @@ export default function SubscriptionsCardsPage() {
         cadence: subscription.cadence,
         status: subscription.status,
         currency: subscription.currency,
+        termEndDateYmd: subscription.end_date,
       }))
     );
     return {
@@ -193,6 +206,8 @@ export default function SubscriptionsCardsPage() {
     setCurrency(defaultCurrency);
     setCadence("monthly");
     setRenewalDate("");
+    setStartDate("");
+    setEndDate("");
     setCategory("");
     setNotes("");
     setStatus("active");
@@ -207,6 +222,8 @@ export default function SubscriptionsCardsPage() {
     setCurrency(subscription.currency);
     setCadence(subscription.cadence);
     setRenewalDate(subscription.renewal_date);
+    setStartDate(subscription.start_date ?? "");
+    setEndDate(subscription.end_date ?? "");
     setCategory(subscription.category ?? "");
     setNotes(subscription.notes ?? "");
     setStatus(subscription.status);
@@ -217,6 +234,11 @@ export default function SubscriptionsCardsPage() {
   async function createSubscription() {
     if (!selectedGroupId || !vendor.trim() || !renewalDate) {
       setError("Group, vendor, and renewal date are required.");
+      return;
+    }
+    const termErr = termDateError(startDate, endDate);
+    if (termErr) {
+      setError(termErr);
       return;
     }
     const parsedAmount = Number.parseFloat(amount);
@@ -242,11 +264,15 @@ export default function SubscriptionsCardsPage() {
         currency: normalizedCurrency,
         cadence,
         renewal_date: renewalDate,
+        start_date: startDate.trim() || null,
+        end_date: endDate.trim() || null,
         status,
         category: category.trim() || null,
         notes: notes.trim() || null,
       })
-      .select("id, vendor_name, amount, currency, cadence, renewal_date, status, category, notes")
+      .select(
+        "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, category, notes"
+      )
       .single();
     setSaving(false);
 
@@ -308,6 +334,11 @@ export default function SubscriptionsCardsPage() {
       setError("Group, vendor, and renewal date are required.");
       return;
     }
+    const termErr = termDateError(startDate, endDate);
+    if (termErr) {
+      setError(termErr);
+      return;
+    }
     const parsedAmount = Number.parseFloat(amount);
     if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
       setError("Amount must be a non-negative number.");
@@ -330,6 +361,8 @@ export default function SubscriptionsCardsPage() {
         currency: normalizedCurrency,
         cadence,
         renewal_date: renewalDate,
+        start_date: startDate.trim() || null,
+        end_date: endDate.trim() || null,
         status,
         category: category.trim() || null,
         notes: notes.trim() || null,
@@ -350,6 +383,8 @@ export default function SubscriptionsCardsPage() {
               currency: normalizedCurrency,
               cadence,
               renewal_date: renewalDate,
+              start_date: startDate.trim() || null,
+              end_date: endDate.trim() || null,
               status,
               category: category.trim() || null,
               notes: notes.trim() || null,
@@ -475,6 +510,7 @@ export default function SubscriptionsCardsPage() {
                           cadence: subscription.cadence,
                           status: subscription.status,
                           currency: subscription.currency,
+                          termEndDateYmd: subscription.end_date,
                         }))
                       );
                       return (
@@ -563,6 +599,11 @@ export default function SubscriptionsCardsPage() {
                           / {cadenceLabel(subscription.cadence)}
                         </span>
                         <span>Renews: {subscription.renewal_date}</span>
+                        <span>
+                          Term: {subscription.start_date ? subscription.start_date : "—"}
+                          {" → "}
+                          {subscription.end_date ?? "open-ended"}
+                        </span>
                         <span>Category: {subscription.category ?? "Uncategorized"}</span>
                       </div>
                       {subscription.notes ? (
@@ -678,6 +719,30 @@ export default function SubscriptionsCardsPage() {
                   onChange={(event) => setRenewalDate(event.target.value)}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-start">Start date (optional)</Label>
+              <Input
+                id="sub-start"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                First day this subscription counts (optional).
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-end">End date (optional)</Label>
+              <Input
+                id="sub-end"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                No billing or reminders after this day (UTC). Leave blank for ongoing.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-status">Status</Label>
@@ -808,6 +873,27 @@ export default function SubscriptionsCardsPage() {
                   onChange={(event) => setRenewalDate(event.target.value)}
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-start">Start date (optional)</Label>
+              <Input
+                id="edit-sub-start"
+                type="date"
+                value={startDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-end">End date (optional)</Label>
+              <Input
+                id="edit-sub-end"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
+              <p className="text-muted-foreground text-xs">
+                No billing or reminders after this day (UTC). Leave blank for ongoing.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-sub-status">Status</Label>

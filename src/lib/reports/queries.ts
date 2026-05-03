@@ -9,7 +9,7 @@ export async function fetchReportSubscriptions(
   const { data, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, vendor_name, category, amount, currency, cadence, status, groups!inner(id, name, workspace_id)"
+      "id, vendor_name, category, amount, currency, cadence, status, start_date, end_date, groups!inner(id, name, workspace_id)"
     )
     .eq("groups.workspace_id", workspaceId);
 

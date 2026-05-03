@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatUtcDayKey,
   monthsSinceAnchor,
+  nextOccurrenceDayKeyOnOrAfter,
   parseRenewalYmd,
   recurrenceOccurrenceDayKeysInUtcRange,
   recurrenceTouchesMonth,
@@ -65,6 +66,33 @@ describe("recurrence", () => {
     expect(recurrenceTouchesMonth("2025-12-08", "monthly", "2026-02")).toBe(true);
     expect(recurrenceTouchesMonth("2025-04-08", "quarterly", "2025-05")).toBe(false);
     expect(recurrenceTouchesMonth("2025-04-08", "quarterly", "2025-07")).toBe(true);
+  });
+
+  it("clips occurrences to start/end bounds (inclusive)", () => {
+    const start = new Date("2025-01-01T00:00:00.000Z");
+    const end = new Date("2025-12-31T00:00:00.000Z");
+    const keys = recurrenceOccurrenceDayKeysInUtcRange("2024-12-08", "monthly", start, end, {
+      startDateYmd: "2025-03-01",
+      endDateYmd: "2025-06-15",
+    });
+    expect(keys).toEqual(["2025-03-08", "2025-04-08", "2025-05-08", "2025-06-08"]);
+  });
+
+  it("nextOccurrenceDayKeyOnOrAfter returns null when strictly after term end", () => {
+    expect(
+      nextOccurrenceDayKeyOnOrAfter("2025-01-15", "monthly", new Date("2026-02-01T00:00:00.000Z"), {
+        endDateYmd: "2026-01-31",
+      })
+    ).toBeNull();
+  });
+
+  it("recurrenceTouchesMonth respects bounds", () => {
+    expect(
+      recurrenceTouchesMonth("2025-12-08", "monthly", "2026-01", { endDateYmd: "2025-12-20" })
+    ).toBe(false);
+    expect(
+      recurrenceTouchesMonth("2025-12-08", "monthly", "2025-12", { endDateYmd: "2025-12-20" })
+    ).toBe(true);
   });
 
   it("helpers", () => {

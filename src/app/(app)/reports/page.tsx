@@ -138,6 +138,7 @@ export default function ReportsPage() {
           cadence: subscription.cadence,
           status: subscription.status,
           currency: subscription.currency,
+          termEndDateYmd: subscription.end_date,
         }))
       ),
     [analyticsSubscriptions]

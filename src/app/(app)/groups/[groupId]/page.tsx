@@ -52,12 +52,22 @@ type SubscriptionRow = {
   currency: string;
   cadence: Cadence;
   renewal_date: string;
+  start_date: string | null;
+  end_date: string | null;
   status: SubStatus;
   category: string | null;
   notes: string | null;
 };
 
 type GroupRow = { id: string; name: string; workspace_id: string };
+
+function termDateError(startYmd: string, endYmd: string): string | null {
+  const s = startYmd.trim();
+  const e = endYmd.trim();
+  if (!s || !e) return null;
+  if (e < s) return "End date must be on or after the start date.";
+  return null;
+}
 
 export default function GroupDetailPage() {
   const params = useParams();
@@ -77,6 +87,8 @@ export default function GroupDetailPage() {
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
   const [cadence, setCadence] = useState<Cadence>("monthly");
   const [renewalDate, setRenewalDate] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<SubStatus>("active");
@@ -95,6 +107,7 @@ export default function GroupDetailPage() {
           cadence: sub.cadence,
           status: sub.status,
           currency: sub.currency,
+          termEndDateYmd: sub.end_date,
         }))
       ),
     [subs]
@@ -134,7 +147,7 @@ export default function GroupDetailPage() {
     const { data: rows, error: se } = await supabase
       .from("subscriptions")
       .select(
-        "id, group_id, vendor_name, amount, currency, cadence, renewal_date, status, category, notes"
+        "id, group_id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, category, notes"
       )
       .eq("group_id", groupId)
       .order("renewal_date", { ascending: true });
@@ -155,6 +168,8 @@ export default function GroupDetailPage() {
           setCurrency(matched.currency);
           setCadence(matched.cadence);
           setRenewalDate(matched.renewal_date);
+          setStartDate(matched.start_date ?? "");
+          setEndDate(matched.end_date ?? "");
           setCategory(matched.category ?? "");
           setNotes(matched.notes ?? "");
           setStatus(matched.status);
@@ -209,6 +224,8 @@ export default function GroupDetailPage() {
     setCurrency(defaultCurrency);
     setCadence("monthly");
     setRenewalDate("");
+    setStartDate("");
+    setEndDate("");
     setCategory("");
     setNotes("");
     setStatus("active");
@@ -222,6 +239,8 @@ export default function GroupDetailPage() {
     setCurrency(row.currency);
     setCadence(row.cadence);
     setRenewalDate(row.renewal_date);
+    setStartDate(row.start_date ?? "");
+    setEndDate(row.end_date ?? "");
     setCategory(row.category ?? "");
     setNotes(row.notes ?? "");
     setStatus(row.status);
@@ -229,6 +248,11 @@ export default function GroupDetailPage() {
 
   async function insertSubscription() {
     if (!groupId || !vendor.trim() || !renewalDate) return;
+    const td = termDateError(startDate, endDate);
+    if (td) {
+      setError(td);
+      return;
+    }
     if (!canCreateSubscription(billing.plan, subs.length)) {
       setError("Subscription limit reached on current plan. Upgrade to Pro to add more.");
       setAddOpen(false);
@@ -257,6 +281,8 @@ export default function GroupDetailPage() {
       currency: cur,
       cadence,
       renewal_date: renewalDate,
+      start_date: startDate.trim() || null,
+      end_date: endDate.trim() || null,
       status,
       category: category.trim() || null,
       notes: notes.trim() || null,
@@ -274,6 +300,11 @@ export default function GroupDetailPage() {
 
   async function updateSubscription() {
     if (!editRow || !vendor.trim() || !renewalDate) return;
+    const td = termDateError(startDate, endDate);
+    if (td) {
+      setError(td);
+      return;
+    }
     const amt = Number.parseFloat(amount);
     if (Number.isNaN(amt) || amt < 0) {
       setError("Amount must be a non-negative number.");
@@ -298,6 +329,8 @@ export default function GroupDetailPage() {
         currency: cur,
         cadence,
         renewal_date: renewalDate,
+        start_date: startDate.trim() || null,
+        end_date: endDate.trim() || null,
         status,
         category: category.trim() || null,
         notes: notes.trim() || null,
@@ -443,6 +476,27 @@ export default function GroupDetailPage() {
         />
       </div>
       <div className="grid gap-2">
+        <Label htmlFor="sub-start">Start date (optional)</Label>
+        <Input
+          id="sub-start"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="sub-end">End date (optional)</Label>
+        <Input
+          id="sub-end"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
+        <p className="text-muted-foreground text-xs">
+          No billing or reminders after this day (UTC). Leave blank for ongoing.
+        </p>
+      </div>
+      <div className="grid gap-2">
         <Label htmlFor="category">Category (optional)</Label>
         <Input
           id="category"
@@ -572,6 +626,8 @@ export default function GroupDetailPage() {
                   <TableHead className="hidden sm:table-cell">Cadence</TableHead>
                   <TableHead>Renewal</TableHead>
                   <TableHead className="hidden md:table-cell">Status</TableHead>
+                  <TableHead className="hidden lg:table-cell">Start</TableHead>
+                  <TableHead className="hidden lg:table-cell">End</TableHead>
                   <TableHead className="w-12 text-right" />
                 </TableRow>
               </TableHeader>
@@ -586,6 +642,8 @@ export default function GroupDetailPage() {
                     <TableCell className="hidden capitalize sm:table-cell">{sub.cadence}</TableCell>
                     <TableCell>{sub.renewal_date}</TableCell>
                     <TableCell className="hidden md:table-cell">{sub.status}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{sub.start_date ?? "—"}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{sub.end_date ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger

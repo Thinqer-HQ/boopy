@@ -195,7 +195,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("subscriptions")
     .select(
-      "id, vendor_name, category, amount, currency, cadence, status, groups!inner(id, name, workspace_id)"
+      "id, vendor_name, category, amount, currency, cadence, status, start_date, end_date, groups!inner(id, name, workspace_id)"
     )
     .eq("groups.workspace_id", workspaceId);
   if (error) {
@@ -231,6 +231,8 @@ export async function GET(request: Request) {
         Cadence: row.cadence,
         Currency: row.currency,
         Amount: row.amount,
+        "Start date": row.startDate || "",
+        "End date": row.endDate || "",
         "Monthly Amount": row.monthlyAmount,
       }))
     );
@@ -283,6 +285,8 @@ export async function GET(request: Request) {
         "Cadence",
         "Currency",
         "Amount",
+        "Start date",
+        "End date",
         "Monthly Amount",
       ],
       ...rows.map((row) => [
@@ -295,6 +299,8 @@ export async function GET(request: Request) {
         row.cadence,
         row.currency,
         row.amount.toFixed(2),
+        row.startDate,
+        row.endDate,
         row.monthlyAmount.toFixed(2),
       ]),
     ];

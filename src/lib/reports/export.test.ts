@@ -64,8 +64,8 @@ describe("reports export helpers", () => {
     const rows: ReportExportRow[] = buildReportRows(sampleSubscriptions());
     const csv = buildReportsCsv(rows);
     expect(csv).toContain(
-      "subscription_id,group_id,group_name,vendor_name,category,status,cadence,currency,amount,monthly_amount"
+      "subscription_id,group_id,group_name,vendor_name,category,status,cadence,currency,amount,start_date,end_date,monthly_amount"
     );
-    expect(csv).toContain("sub-1,g-1,Ops,Notion,Productivity,active,monthly,USD,12,12");
+    expect(csv).toContain("sub-1,g-1,Ops,Notion,Productivity,active,monthly,USD,12,,,12");
   });
 });

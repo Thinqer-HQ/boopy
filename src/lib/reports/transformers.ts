@@ -8,6 +8,8 @@ export type ReportSubscription = {
   currency: string;
   cadence: "monthly" | "yearly" | "quarterly" | "custom";
   status: "active" | "paused" | "cancelled";
+  start_date?: string | null;
+  end_date?: string | null;
   groups: { id?: string; name: string } | Array<{ id?: string; name: string }> | null;
 };
 
@@ -37,6 +39,7 @@ export function buildMonthlyTrend(subscriptions: ReportSubscription[], months: n
         amount: subscription.amount,
         cadence: subscription.cadence,
         status: subscription.status,
+        termEndDateYmd: subscription.end_date,
       })
     );
   }, 0);
@@ -52,6 +55,7 @@ export function buildCategoryBreakdown(subscriptions: ReportSubscription[]): Bre
       amount: subscription.amount,
       cadence: subscription.cadence,
       status: subscription.status,
+      termEndDateYmd: subscription.end_date,
     });
     map.set(label, (map.get(label) ?? 0) + monthly);
   }
@@ -68,6 +72,7 @@ export function buildVendorBreakdown(subscriptions: ReportSubscription[]): Break
         amount: subscription.amount,
         cadence: subscription.cadence,
         status: subscription.status,
+        termEndDateYmd: subscription.end_date,
       }),
     }))
     .sort((a, b) => b.total - a.total);
@@ -82,6 +87,7 @@ export function buildGroupBreakdown(subscriptions: ReportSubscription[]): Breakd
       amount: subscription.amount,
       cadence: subscription.cadence,
       status: subscription.status,
+      termEndDateYmd: subscription.end_date,
     });
     map.set(label, (map.get(label) ?? 0) + monthly);
   }

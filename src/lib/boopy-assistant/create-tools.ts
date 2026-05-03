@@ -47,7 +47,7 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
         supabase
           .from("subscriptions")
           .select(
-            "id, vendor_name, amount, currency, cadence, renewal_date, status, category, groups!inner(id, name, workspace_id)"
+            "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, category, groups!inner(id, name, workspace_id)"
           )
           .eq("groups.workspace_id", workspace.id)
           .order("renewal_date", { ascending: true })
@@ -64,6 +64,8 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
         currency: string;
         cadence: string;
         renewal_date: string;
+        start_date: string | null;
+        end_date: string | null;
         status: string;
         category: string | null;
         groups: { id: string; name: string } | { id: string; name: string }[];
@@ -78,6 +80,8 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
           currency: r.currency,
           cadence: r.cadence,
           renewal_date: r.renewal_date,
+          start_date: r.start_date,
+          end_date: r.end_date,
           status: r.status,
           category: r.category,
           group_id: g?.id ?? null,
@@ -135,6 +139,16 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)
         .describe("ISO date YYYY-MM-DD"),
+      start_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Optional subscription start YYYY-MM-DD"),
+      end_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("Optional last billing day YYYY-MM-DD"),
       status: z.enum(["active", "paused", "cancelled"]).optional().default("active"),
       category: z.string().max(120).optional(),
       notes: z.string().max(2000).optional(),
@@ -156,6 +170,11 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
         groupId = g.id;
       }
       if (!groupId) return jsonError("Provide group_id or group_name.");
+      const start = args.start_date?.trim();
+      const end = args.end_date?.trim();
+      if (start && end && end < start) {
+        return jsonError("end_date must be on or after start_date.");
+      }
 
       const { data, error: insErr } = await supabase
         .from("subscriptions")
@@ -166,6 +185,8 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
           currency: args.currency,
           cadence: args.cadence,
           renewal_date: args.renewal_date,
+          start_date: start || null,
+          end_date: end || null,
           status: args.status ?? "active",
           category: args.category?.trim() || null,
           notes: args.notes?.trim() || null,

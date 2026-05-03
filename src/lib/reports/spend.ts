@@ -4,6 +4,8 @@ export type SpendInput = {
   amount: number | string | null | undefined;
   cadence: Cadence;
   status: "active" | "paused" | "cancelled";
+  /** YYYY-MM-DD last day the subscription runs; after this (UTC calendar day) it contributes $0 to spend. */
+  termEndDateYmd?: string | null;
 };
 
 export type SpendByCurrencyInput = SpendInput & {
@@ -15,8 +17,14 @@ export function toAmount(value: number | string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+export function utcTodayYmd(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function toMonthlyAmount(input: SpendInput): number {
   if (input.status !== "active") return 0;
+  const termEnd = input.termEndDateYmd?.trim();
+  if (termEnd && termEnd < utcTodayYmd()) return 0;
   const amount = toAmount(input.amount);
   if (input.cadence === "yearly") return amount / 12;
   if (input.cadence === "quarterly") return amount / 3;

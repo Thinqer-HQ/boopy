@@ -23,6 +23,7 @@ import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/li
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import {
+  recurrenceBoundsFromNullable,
   recurrenceOccurrenceDayKeysInUtcRange,
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
@@ -35,6 +36,8 @@ type SubscriptionRow = {
   currency: string;
   cadence: SubscriptionCadence;
   renewal_date: string;
+  start_date: string | null;
+  end_date: string | null;
   status: "active" | "paused" | "cancelled";
   groups: { name: string } | Array<{ name: string }> | null;
 };
@@ -63,7 +66,7 @@ export default function AppHome() {
         supabase
           .from("subscriptions")
           .select(
-            "id, vendor_name, amount, currency, cadence, renewal_date, status, groups!inner(name, workspace_id)"
+            "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, groups!inner(name, workspace_id)"
           )
           .eq("groups.workspace_id", state.workspaceId)
           .order("renewal_date", { ascending: true }),
@@ -92,11 +95,13 @@ export default function AppHome() {
     const cutoff = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     return subscriptions.filter((subscription) => {
       if (subscription.status !== "active") return false;
+      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
       const keys = recurrenceOccurrenceDayKeysInUtcRange(
         subscription.renewal_date,
         subscription.cadence,
         now,
-        cutoff
+        cutoff,
+        bounds
       );
       return keys.length > 0;
     });
@@ -110,6 +115,7 @@ export default function AppHome() {
           cadence: subscription.cadence,
           status: subscription.status,
           currency: subscription.currency,
+          termEndDateYmd: subscription.end_date,
         }))
       ),
     [subscriptions]
@@ -127,6 +133,7 @@ export default function AppHome() {
         amount: subscription.amount,
         cadence: subscription.cadence,
         status: subscription.status,
+        termEndDateYmd: subscription.end_date,
       });
       const currency = (subscription.currency ?? "USD").toUpperCase();
       const currentGroup = map.get(groupName) ?? new Map<string, number>();
