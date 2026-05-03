@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, Loader2, Map as MapIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -81,11 +81,6 @@ export function BoopyRoadmapWidget() {
     setRows(sortRoadmapRows((data ?? []) as RoadmapItemRow[]));
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    void load();
-  }, [open, load]);
-
   const grouped = useMemo(() => {
     if (!rows?.length) return [];
     const valid = rows.filter((r) => isRoadmapStatus(r.feature_status));
@@ -108,7 +103,9 @@ export function BoopyRoadmapWidget() {
 
   function handleOpenChange(next: boolean) {
     setOpen(next);
-    if (!next) {
+    if (next) {
+      void load();
+    } else {
       setLoadError(null);
     }
   }
@@ -120,7 +117,7 @@ export function BoopyRoadmapWidget() {
         variant="outline"
         size="sm"
         className="bg-background/95 pointer-events-auto shadow-md backdrop-blur-sm"
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
         aria-label="Open product roadmap"
       >
         <MapIcon className="size-4" />
