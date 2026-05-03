@@ -13,6 +13,29 @@ export function MissingSupabaseConfig() {
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
+            <AlertTitle>Production (Vercel, etc.)</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p className="text-sm">
+                In your host’s dashboard, add these as project{" "}
+                <strong>environment variables</strong> (not only in a local file), then{" "}
+                <strong>redeploy</strong>. Values come from Supabase:{" "}
+                <span className="whitespace-nowrap">Project Settings → API</span>.
+              </p>
+              <ul className="list-inside list-disc text-sm">
+                <li>
+                  <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> — Project URL
+                </li>
+                <li>
+                  <code className="text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> — anon public key
+                </li>
+              </ul>
+              <p className="text-muted-foreground text-sm">
+                On Vercel: Project → Settings → Environment Variables. Use the same names; apply to
+                Production (and Preview if you deploy previews).
+              </p>
+            </AlertDescription>
+          </Alert>
+          <Alert>
             <AlertTitle>Local development</AlertTitle>
             <AlertDescription className="space-y-2">
               <p>

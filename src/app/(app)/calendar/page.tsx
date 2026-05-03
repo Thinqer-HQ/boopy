@@ -20,6 +20,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { formatCurrency } from "@/lib/reports/spend";
+import {
+  recurrenceOccurrenceDayKeysInUtcRange,
+  type SubscriptionCadence,
+} from "@/lib/subscriptions/recurrence";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 
 type SubscriptionRow = {
@@ -27,7 +31,7 @@ type SubscriptionRow = {
   vendor_name: string;
   amount: number | string;
   currency: string;
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: SubscriptionCadence;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
   groups: { id: string; name: string } | Array<{ id: string; name: string }> | null;
@@ -148,20 +152,6 @@ export default function CalendarPage() {
     return start;
   }, [firstDayOfMonth]);
 
-  const eventsByDay = useMemo(() => {
-    const map = new Map<string, SubscriptionRow[]>();
-    for (const subscription of visibleSubscriptions) {
-      const renewal = new Date(`${subscription.renewal_date}T00:00:00.000Z`);
-      if (monthKey(renewal) !== selectedMonth) continue;
-      const key = formatDay(renewal);
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key)?.push(subscription);
-    }
-    return map;
-  }, [visibleSubscriptions, selectedMonth]);
-
   const calendarDays = useMemo(() => {
     return Array.from({ length: 42 }).map((_, index) => {
       const date = new Date(gridStart);
@@ -169,6 +159,26 @@ export default function CalendarPage() {
       return date;
     });
   }, [gridStart]);
+
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, SubscriptionRow[]>();
+    if (calendarDays.length === 0) return map;
+    const rangeStart = calendarDays[0]!;
+    const rangeEnd = calendarDays[calendarDays.length - 1]!;
+    for (const subscription of visibleSubscriptions) {
+      const dayKeys = recurrenceOccurrenceDayKeysInUtcRange(
+        subscription.renewal_date,
+        subscription.cadence,
+        rangeStart,
+        rangeEnd
+      );
+      for (const key of dayKeys) {
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(subscription);
+      }
+    }
+    return map;
+  }, [visibleSubscriptions, calendarDays]);
 
   const selectedDayEvents = useMemo(
     () => (selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []),
@@ -442,99 +452,113 @@ export default function CalendarPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className="mb-3 hidden flex-wrap items-center gap-2 text-xs sm:flex">
             <Badge variant="outline">Click any day box to open details</Badge>
             <Badge variant="outline">Use checkbox to include days in sync</Badge>
             <Badge variant="outline">Today highlighted</Badge>
           </div>
-          <div className="grid grid-cols-7 gap-2 text-xs font-medium">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="text-muted-foreground px-2 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-2">
-            {calendarDays.map((date) => {
-              const key = formatDay(date);
-              const events = eventsByDay.get(key) ?? [];
-              const isCurrentMonth = monthKey(date) === selectedMonth;
-              const isToday = key === todayKey;
-              const isSelected = key === selectedDay;
-              return (
-                <div
-                  key={key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedDay(key)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setSelectedDay(key);
-                    }
-                  }}
-                  className={`min-h-28 rounded-lg border p-2 text-left transition-colors ${
-                    isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/30"
-                  } ${isToday ? "ring-primary/40 ring-2" : ""} ${isSelected ? "border-primary bg-primary/5" : ""}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p
-                      className={`rounded px-1.5 py-0.5 text-xs font-semibold ${isCurrentMonth ? "" : "text-muted-foreground"} ${
-                        isSelected ? "bg-primary text-primary-foreground" : ""
-                      }`}
+          <p className="text-muted-foreground mb-3 text-xs sm:hidden">
+            Tap a day for details. Pinch or scroll the calendar horizontally if needed.
+          </p>
+          <div className="-mx-2 overflow-x-auto px-2 sm:mx-0 sm:overflow-visible sm:px-0">
+            <div className="min-w-[min(100%,520px)] sm:min-w-0">
+              <div className="grid grid-cols-7 gap-1 text-[10px] font-medium sm:gap-2 sm:text-xs">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
+                  const short = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][i] ?? day.slice(0, 2);
+                  return (
+                    <div
+                      key={day}
+                      className="text-muted-foreground px-0.5 py-1 text-center sm:px-2"
                     >
-                      {date.getUTCDate()}
-                    </p>
-                    {isCurrentMonth ? (
-                      <button
-                        type="button"
-                        aria-label={`Select ${key} for sync`}
-                        className={`h-4 w-4 rounded-sm border transition-colors ${
-                          selectedSyncDays.has(key)
-                            ? "border-black bg-black"
-                            : "border-zinc-400 bg-transparent"
-                        }`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSyncScope("days");
-                          toggleSyncDay(key);
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                  <div className="mt-1 space-y-1">
-                    {events.slice(0, 3).map((event) => {
-                      const group = first(event.groups);
-                      return (
-                        <div
-                          key={event.id}
-                          className="rounded border-l-4 border-indigo-400 bg-indigo-50/70 p-1 dark:bg-indigo-950/30"
+                      <span className="sm:hidden">{short}</span>
+                      <span className="hidden sm:inline">{day}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                {calendarDays.map((date) => {
+                  const key = formatDay(date);
+                  const events = eventsByDay.get(key) ?? [];
+                  const isCurrentMonth = monthKey(date) === selectedMonth;
+                  const isToday = key === todayKey;
+                  const isSelected = key === selectedDay;
+                  return (
+                    <div
+                      key={key}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedDay(key)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedDay(key);
+                        }
+                      }}
+                      className={`min-h-24 rounded-lg border p-1.5 text-left transition-colors sm:min-h-28 sm:p-2 ${
+                        isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/30"
+                      } ${isToday ? "ring-primary/40 ring-2" : ""} ${isSelected ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p
+                          className={`rounded px-1.5 py-0.5 text-xs font-semibold ${isCurrentMonth ? "" : "text-muted-foreground"} ${
+                            isSelected ? "bg-primary text-primary-foreground" : ""
+                          }`}
                         >
-                          <p className="truncate text-xs font-medium">{event.vendor_name}</p>
-                          <div className="flex items-center justify-between gap-1">
-                            <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                              {group?.name ?? "Unknown"}
-                            </Badge>
-                            <span className="text-[10px]">
-                              {formatCurrency(Number(event.amount ?? 0), event.currency)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {events.length > 3 ? (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDay(key)}
-                        className="text-muted-foreground text-[10px] underline-offset-2 hover:underline"
-                      >
-                        +{events.length - 3} more
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
+                          {date.getUTCDate()}
+                        </p>
+                        {isCurrentMonth ? (
+                          <button
+                            type="button"
+                            aria-label={`Select ${key} for sync`}
+                            className={`h-4 w-4 rounded-sm border transition-colors ${
+                              selectedSyncDays.has(key)
+                                ? "border-black bg-black"
+                                : "border-zinc-400 bg-transparent"
+                            }`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSyncScope("days");
+                              toggleSyncDay(key);
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {events.slice(0, 3).map((event) => {
+                          const group = first(event.groups);
+                          return (
+                            <div
+                              key={event.id}
+                              className="rounded border-l-4 border-indigo-400 bg-indigo-50/70 p-1 dark:bg-indigo-950/30"
+                            >
+                              <p className="truncate text-xs font-medium">{event.vendor_name}</p>
+                              <div className="flex items-center justify-between gap-1">
+                                <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                                  {group?.name ?? "Unknown"}
+                                </Badge>
+                                <span className="text-[10px]">
+                                  {formatCurrency(Number(event.amount ?? 0), event.currency)}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {events.length > 3 ? (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDay(key)}
+                            className="text-muted-foreground text-[10px] underline-offset-2 hover:underline"
+                          >
+                            +{events.length - 3} more
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,4 @@
-type Cadence = "monthly" | "yearly" | "custom";
+type Cadence = "monthly" | "yearly" | "quarterly" | "custom";
 
 export type SpendInput = {
   amount: number | string | null | undefined;
@@ -19,6 +19,7 @@ export function toMonthlyAmount(input: SpendInput): number {
   if (input.status !== "active") return 0;
   const amount = toAmount(input.amount);
   if (input.cadence === "yearly") return amount / 12;
+  if (input.cadence === "quarterly") return amount / 3;
   return amount;
 }
 

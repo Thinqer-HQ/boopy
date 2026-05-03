@@ -6,7 +6,7 @@ export type ReportSubscription = {
   category: string | null;
   amount: number | string;
   currency: string;
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: "monthly" | "yearly" | "quarterly" | "custom";
   status: "active" | "paused" | "cancelled";
   groups: { id?: string; name: string } | Array<{ id?: string; name: string }> | null;
 };

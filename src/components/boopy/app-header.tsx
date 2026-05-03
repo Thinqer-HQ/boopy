@@ -1,6 +1,14 @@
 "use client";
 
-import { Bell, ChevronDown, CreditCard, LogOut, Settings, SlidersHorizontal } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  CreditCard,
+  LogOut,
+  Menu,
+  Settings,
+  SlidersHorizontal,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,6 +35,24 @@ function initials(email: string | undefined) {
   const part = email.split("@")[0] ?? email;
   return part.slice(0, 2).toUpperCase();
 }
+
+const APP_NAV = [
+  { href: "/", label: "Dashboard", active: (p: string) => p === "/" },
+  {
+    href: "/groups",
+    label: "Groups",
+    active: (p: string) => p === "/groups" || p.startsWith("/groups/"),
+  },
+  { href: "/subscriptions", label: "Subscriptions", active: (p: string) => p === "/subscriptions" },
+  { href: "/calendar", label: "Calendar", active: (p: string) => p === "/calendar" },
+  { href: "/documents", label: "Documents", active: (p: string) => p === "/documents" },
+  { href: "/reports", label: "Reports", active: (p: string) => p === "/reports" },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    active: (p: string) => p === "/notifications" || p.startsWith("/settings/notifications"),
+  },
+] as const;
 
 export function AppHeader({ className }: { className?: string }) {
   const router = useRouter();
@@ -113,90 +139,73 @@ export function AppHeader({ className }: { className?: string }) {
   return (
     <header
       className={cn(
-        "bg-background/80 sticky top-0 z-50 flex h-14 items-center justify-between gap-4 border-b px-4 backdrop-blur md:px-6",
+        "bg-background/80 sticky top-0 z-50 flex min-h-14 flex-wrap items-center justify-between gap-2 border-b px-3 backdrop-blur sm:h-14 sm:flex-nowrap sm:gap-4 sm:px-4 md:px-6",
         className
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-[unset] sm:flex-initial sm:gap-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon" }),
+              "shrink-0 sm:hidden",
+              "touch-manipulation"
+            )}
+            aria-label="Open menu"
+          >
+            <Menu className="size-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[min(calc(100vw-2rem),280px)]">
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+              Navigate
+            </DropdownMenuLabel>
+            {APP_NAV.map((item) => (
+              <DropdownMenuItem
+                key={item.href}
+                className={cn(item.active(pathname) && "bg-muted")}
+                onClick={() => router.push(item.href)}
+              >
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="gap-2" onClick={() => router.push("/settings/billing")}>
+              <CreditCard className="size-4" />
+              Billing{" "}
+              <span className="text-muted-foreground ml-auto text-xs">
+                {billing.plan === "pro" ? "Pro" : "Free"}
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Link
           href="/"
-          className="font-heading text-foreground text-lg font-semibold tracking-tight"
+          className="font-heading text-foreground min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg"
         >
           Boopy
         </Link>
-        <span className="text-muted-foreground hidden text-xs sm:inline">
+        <span className="text-muted-foreground hidden text-xs lg:inline">
           Subscription reminders
         </span>
-        <nav className="ml-2 hidden items-center gap-1 sm:flex">
-          <Link
-            href="/"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/" && "bg-muted text-foreground"
-            )}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/groups"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              (pathname === "/groups" || pathname.startsWith("/groups/")) &&
-                "bg-muted text-foreground"
-            )}
-          >
-            Groups
-          </Link>
-          <Link
-            href="/subscriptions"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/subscriptions" && "bg-muted text-foreground"
-            )}
-          >
-            Subscriptions
-          </Link>
-          <Link
-            href="/calendar"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/calendar" && "bg-muted text-foreground"
-            )}
-          >
-            Calendar
-          </Link>
-          <Link
-            href="/documents"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/documents" && "bg-muted text-foreground"
-            )}
-          >
-            Documents
-          </Link>
-          <Link
-            href="/reports"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/reports" && "bg-muted text-foreground"
-            )}
-          >
-            Reports
-          </Link>
-          <Link
-            href="/notifications"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              pathname === "/notifications" && "bg-muted text-foreground"
-            )}
-          >
-            Notifications
-          </Link>
+        <nav className="ml-0 hidden items-center gap-1 sm:ml-2 sm:flex">
+          {APP_NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                item.active(pathname) && "bg-muted text-foreground"
+              )}
+            >
+              {item.label}
+            </Link>
+          ))}
         </nav>
       </div>
 
       <div className="flex items-center gap-2">
-        <Link href="/settings/billing" className="hidden sm:block">
+        <Link href="/settings/billing" className="hidden md:block">
           <Badge variant={billing.plan === "pro" ? "secondary" : "outline"}>
             {billing.plan === "pro" ? "PRO" : "FREE"}
           </Badge>

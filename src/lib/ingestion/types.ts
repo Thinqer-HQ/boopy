@@ -4,7 +4,7 @@ export type ParsedSubscriptionCandidate = {
   vendorName: string;
   amount: number | null;
   currency: string;
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: "monthly" | "yearly" | "quarterly" | "custom";
   renewalDate: string | null;
   confidence: number;
   rawPayload: Record<string, unknown>;

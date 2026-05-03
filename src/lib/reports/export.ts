@@ -8,7 +8,7 @@ export type ReportExportRow = {
   vendorName: string;
   category: string;
   status: "active" | "paused" | "cancelled";
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: "monthly" | "yearly" | "quarterly" | "custom";
   currency: string;
   amount: number;
   monthlyAmount: number;

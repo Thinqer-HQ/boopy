@@ -158,7 +158,7 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
   }
 
   return (
-    <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col items-end gap-2 md:right-6 md:bottom-6">
+    <div className="pointer-events-none fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-2 sm:right-5 sm:bottom-5 md:right-6 md:bottom-6">
       {open ? (
         <div className="bg-background border-border pointer-events-auto flex max-h-[min(32rem,70dvh)] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border shadow-xl">
           <div className="flex items-center justify-between border-b px-3 py-2">

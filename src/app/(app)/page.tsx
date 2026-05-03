@@ -19,9 +19,13 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
-import { calculateTotalsByCurrency, formatCurrency } from "@/lib/reports/spend";
+import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/lib/reports/spend";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
+import {
+  recurrenceOccurrenceDayKeysInUtcRange,
+  type SubscriptionCadence,
+} from "@/lib/subscriptions/recurrence";
 
 type GroupCountRow = { id: string; name: string };
 type SubscriptionRow = {
@@ -29,7 +33,7 @@ type SubscriptionRow = {
   vendor_name: string;
   amount: number | string;
   currency: string;
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: SubscriptionCadence;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
   groups: { name: string } | Array<{ name: string }> | null;
@@ -88,8 +92,13 @@ export default function AppHome() {
     const cutoff = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     return subscriptions.filter((subscription) => {
       if (subscription.status !== "active") return false;
-      const renewal = new Date(`${subscription.renewal_date}T00:00:00.000Z`);
-      return renewal >= now && renewal <= cutoff;
+      const keys = recurrenceOccurrenceDayKeysInUtcRange(
+        subscription.renewal_date,
+        subscription.cadence,
+        now,
+        cutoff
+      );
+      return keys.length > 0;
     });
   }, [subscriptions]);
 
@@ -114,7 +123,11 @@ export default function AppHome() {
       const groupName = group?.name ?? "Unknown";
       const amount = Number(subscription.amount ?? 0);
       if (!Number.isFinite(amount)) continue;
-      const monthlyAmount = subscription.cadence === "yearly" ? amount / 12 : amount;
+      const monthlyAmount = toMonthlyAmount({
+        amount: subscription.amount,
+        cadence: subscription.cadence,
+        status: subscription.status,
+      });
       const currency = (subscription.currency ?? "USD").toUpperCase();
       const currentGroup = map.get(groupName) ?? new Map<string, number>();
       currentGroup.set(currency, (currentGroup.get(currency) ?? 0) + monthlyAmount);

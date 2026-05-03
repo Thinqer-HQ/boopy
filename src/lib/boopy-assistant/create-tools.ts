@@ -130,7 +130,7 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
         .min(3)
         .max(8)
         .transform((s) => s.trim().toUpperCase()),
-      cadence: z.enum(["monthly", "yearly", "custom"]),
+      cadence: z.enum(["monthly", "yearly", "quarterly", "custom"]),
       renewal_date: z
         .string()
         .regex(/^\d{4}-\d{2}-\d{2}$/)

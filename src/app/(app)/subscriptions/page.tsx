@@ -31,7 +31,7 @@ type SubscriptionRow = {
   vendor_name: string;
   amount: number | string;
   currency: string;
-  cadence: "monthly" | "yearly" | "custom";
+  cadence: "monthly" | "yearly" | "quarterly" | "custom";
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
   category: string | null;
@@ -48,6 +48,7 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 function cadenceLabel(cadence: SubscriptionRow["cadence"]) {
   if (cadence === "monthly") return "Monthly";
   if (cadence === "yearly") return "Yearly";
+  if (cadence === "quarterly") return "Quarterly";
   return "Custom";
 }
 
@@ -66,7 +67,7 @@ export default function SubscriptionsCardsPage() {
   const [vendor, setVendor] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
-  const [cadence, setCadence] = useState<"monthly" | "yearly" | "custom">("monthly");
+  const [cadence, setCadence] = useState<"monthly" | "yearly" | "quarterly" | "custom">("monthly");
   const [renewalDate, setRenewalDate] = useState("");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
@@ -654,11 +655,12 @@ export default function SubscriptionsCardsPage() {
                   id="sub-cadence"
                   value={cadence}
                   onChange={(event) =>
-                    setCadence(event.target.value as "monthly" | "yearly" | "custom")
+                    setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
                   }
                   className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
                 >
                   <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
                   <option value="yearly">Yearly</option>
                   <option value="custom">Custom</option>
                 </select>
@@ -783,11 +785,12 @@ export default function SubscriptionsCardsPage() {
                   id="edit-sub-cadence"
                   value={cadence}
                   onChange={(event) =>
-                    setCadence(event.target.value as "monthly" | "yearly" | "custom")
+                    setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
                   }
                   className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
                 >
                   <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
                   <option value="yearly">Yearly</option>
                   <option value="custom">Custom</option>
                 </select>

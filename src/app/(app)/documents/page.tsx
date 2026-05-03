@@ -32,7 +32,7 @@ type CandidateRow = {
   vendor_name: string | null;
   amount: number | null;
   currency: string | null;
-  cadence: "monthly" | "yearly" | "custom" | null;
+  cadence: "monthly" | "yearly" | "quarterly" | "custom" | null;
   renewal_date: string | null;
   confidence: number;
   status: "pending" | "confirmed" | "rejected";
@@ -230,7 +230,7 @@ export default function DocumentsPage() {
     vendorName: string;
     amount: number;
     currency: string;
-    cadence: "monthly" | "yearly" | "custom";
+    cadence: "monthly" | "yearly" | "quarterly" | "custom";
     renewalDate: string;
   }) {
     if (state.status !== "ready") return;

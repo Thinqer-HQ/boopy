@@ -8,6 +8,8 @@ import { supabaseService } from "@/lib/supabase/server";
 
 type CheckoutRequestBody = {
   workspaceId?: string;
+  /** Optional customer-facing code from Stripe (Promotion codes in Dashboard). */
+  promotionCode?: string;
 };
 
 export async function POST(request: Request) {
@@ -65,6 +67,22 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const stripe = getStripe();
+
+  const promotionCodeInput = body.promotionCode?.trim();
+  let discounts: [{ promotion_code: string }] | undefined;
+  if (promotionCodeInput) {
+    const promoList = await stripe.promotionCodes.list({
+      code: promotionCodeInput,
+      active: true,
+      limit: 1,
+    });
+    const promo = promoList.data[0];
+    if (!promo?.active) {
+      return NextResponse.json({ error: "Invalid or inactive promotion code." }, { status: 400 });
+    }
+    discounts = [{ promotion_code: promo.id }];
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [
@@ -77,6 +95,11 @@ export async function POST(request: Request) {
     customer_email: existingBilling?.stripe_customer_id ? undefined : userEmail || undefined,
     success_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?checkout=success`,
     cancel_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?checkout=cancelled`,
+    ...(discounts
+      ? { discounts }
+      : {
+          allow_promotion_codes: true,
+        }),
     metadata: {
       workspace_id: workspaceId,
       owner_user_id: userId,
@@ -93,6 +116,7 @@ export async function POST(request: Request) {
     workspaceId,
     userId,
     stripeSessionId: session.id,
+    promotionSource: promotionCodeInput ? "body" : "stripe_checkout",
   });
 
   return NextResponse.json({ checkoutUrl: session.url });

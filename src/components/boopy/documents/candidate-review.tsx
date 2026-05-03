@@ -13,7 +13,7 @@ type Candidate = {
   vendor_name: string | null;
   amount: number | null;
   currency: string | null;
-  cadence: "monthly" | "yearly" | "custom" | null;
+  cadence: "monthly" | "yearly" | "quarterly" | "custom" | null;
   renewal_date: string | null;
   confidence: number;
   status: "pending" | "confirmed" | "rejected";
@@ -30,7 +30,7 @@ type Props = {
     vendorName: string;
     amount: number;
     currency: string;
-    cadence: "monthly" | "yearly" | "custom";
+    cadence: "monthly" | "yearly" | "quarterly" | "custom";
     renewalDate: string;
   }) => Promise<void>;
   onReject: (candidateId: string) => Promise<void>;
@@ -41,7 +41,7 @@ export function CandidateReview({ candidate, groups, onConfirm, onReject }: Prop
   const [vendorName, setVendorName] = useState(candidate.vendor_name ?? "");
   const [amount, setAmount] = useState(candidate.amount ? String(candidate.amount) : "");
   const [currency, setCurrency] = useState(candidate.currency ?? "USD");
-  const [cadence, setCadence] = useState<"monthly" | "yearly" | "custom">(
+  const [cadence, setCadence] = useState<"monthly" | "yearly" | "quarterly" | "custom">(
     candidate.cadence ?? "monthly"
   );
   const [renewalDate, setRenewalDate] = useState(candidate.renewal_date ?? "");
@@ -110,11 +110,12 @@ export function CandidateReview({ candidate, groups, onConfirm, onReject }: Prop
             <select
               value={cadence}
               onChange={(event) =>
-                setCadence(event.target.value as "monthly" | "yearly" | "custom")
+                setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
               }
               className="border-input bg-background h-10 rounded-md border px-3 text-sm"
             >
               <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
               <option value="yearly">Yearly</option>
               <option value="custom">Custom</option>
             </select>

@@ -41,7 +41,7 @@ import { calculateTotalsByCurrency, formatCurrency } from "@/lib/reports/spend";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
-type Cadence = "monthly" | "yearly" | "custom";
+type Cadence = "monthly" | "yearly" | "quarterly" | "custom";
 type SubStatus = "active" | "paused" | "cancelled";
 
 type SubscriptionRow = {
@@ -414,6 +414,7 @@ export default function GroupDetailPage() {
             className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
           >
             <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
             <option value="yearly">Yearly</option>
             <option value="custom">Custom</option>
           </select>

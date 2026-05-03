@@ -1,6 +1,6 @@
 import type { ParsedSubscriptionCandidate, ParserInput } from "@/lib/ingestion/types";
 
-function detectCadence(text: string): "monthly" | "yearly" | "custom" {
+function detectCadence(text: string): "monthly" | "yearly" | "quarterly" | "custom" {
   const normalized = text.toLowerCase();
   if (
     normalized.includes("yearly") ||
@@ -9,6 +9,7 @@ function detectCadence(text: string): "monthly" | "yearly" | "custom" {
   ) {
     return "yearly";
   }
+  if (normalized.includes("quarterly") || normalized.includes("quarter ")) return "quarterly";
   if (normalized.includes("monthly") || normalized.includes("month ")) return "monthly";
   return "custom";
 }

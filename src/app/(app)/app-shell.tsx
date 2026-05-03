@@ -207,7 +207,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="bg-muted/30 flex min-h-svh flex-1 flex-col">
       <AppHeader />
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col">{children}</div>
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col pb-24 sm:pb-16">{children}</div>
       <BoopyChatWidget workspaceId={workspaceSettings?.workspaceId ?? null} />
       {workspaceSettings ? (
         <WorkspaceSettingsDialog

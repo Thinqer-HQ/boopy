@@ -9,6 +9,8 @@ import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { getPlanCapabilities } from "@/lib/billing/plan";
@@ -23,6 +25,7 @@ export default function BillingSettingsPage() {
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promotionCode, setPromotionCode] = useState("");
 
   const checkoutResult = useMemo(() => searchParams.get("checkout"), [searchParams]);
   const capabilities = getPlanCapabilities(billing.plan);
@@ -60,13 +63,17 @@ export default function BillingSettingsPage() {
       return;
     }
 
+    const code = promotionCode.trim();
     const response = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ workspaceId }),
+      body: JSON.stringify({
+        workspaceId,
+        ...(code ? { promotionCode: code } : {}),
+      }),
     });
 
     setLoadingCheckout(false);
@@ -257,6 +264,23 @@ export default function BillingSettingsPage() {
             <p className="text-muted-foreground text-sm">
               Upgrade securely with Stripe. You can change/cancel from Stripe customer tools later.
             </p>
+            {billing.plan !== "pro" ? (
+              <div className="space-y-2">
+                <Label htmlFor="promotion-code">Coupon or promo code (optional)</Label>
+                <Input
+                  id="promotion-code"
+                  autoComplete="off"
+                  placeholder="e.g. LAUNCH2026"
+                  value={promotionCode}
+                  onChange={(e) => setPromotionCode(e.target.value)}
+                  disabled={loadingCheckout}
+                />
+                <p className="text-muted-foreground text-xs">
+                  If you leave this blank, you can still enter a code on the Stripe checkout page
+                  when available.
+                </p>
+              </div>
+            ) : null}
             <Button
               disabled={loadingCheckout || billing.plan === "pro"}
               onClick={() => void startCheckout()}

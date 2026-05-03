@@ -8,6 +8,10 @@ describe("reports spend helpers", () => {
     expect(toMonthlyAmount({ amount: 20, cadence: "monthly", status: "active" })).toBe(20);
   });
 
+  it("normalizes quarterly plans to monthly spend", () => {
+    expect(toMonthlyAmount({ amount: 30, cadence: "quarterly", status: "active" })).toBe(10);
+  });
+
   it("aggregates monthly and yearly totals", () => {
     const totals = calculateTotals([
       { amount: 120, cadence: "yearly", status: "active" },

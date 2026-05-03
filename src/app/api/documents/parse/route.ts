@@ -22,7 +22,7 @@ type CandidateDecisionBody = {
   vendorName?: string;
   amount?: number;
   currency?: string;
-  cadence?: "monthly" | "yearly" | "custom";
+  cadence?: "monthly" | "yearly" | "quarterly" | "custom";
   renewalDate?: string;
 };
 

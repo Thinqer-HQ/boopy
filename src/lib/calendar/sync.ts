@@ -4,6 +4,12 @@ import {
   upsertGoogleEvent,
 } from "@/lib/calendar/google";
 import { supabaseService } from "@/lib/supabase/server";
+import {
+  recurrenceTouchesDaySet,
+  recurrenceTouchesMonth,
+  nextOccurrenceDayKeyOnOrAfter,
+  type SubscriptionCadence,
+} from "@/lib/subscriptions/recurrence";
 
 type IntegrationRow = {
   workspace_id: string;
@@ -18,6 +24,7 @@ type SubscriptionRow = {
   vendor_name: string;
   amount: number;
   currency: string;
+  cadence: SubscriptionCadence;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
   groups: { name: string } | Array<{ name: string }> | null;
@@ -41,29 +48,33 @@ function first<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-function matchesSyncSelection(renewalDate: string, selection?: CalendarSyncSelection) {
+function matchesSyncSelection(
+  renewalDate: string,
+  cadence: SubscriptionCadence,
+  selection?: CalendarSyncSelection
+) {
   const scope = selection?.scope ?? "all";
   if (scope === "all") return true;
   if (scope === "month") {
     const month = selection?.month?.trim();
     if (!month) return true;
-    return renewalDate.startsWith(`${month}-`);
+    return recurrenceTouchesMonth(renewalDate, cadence, month);
   }
   if (scope === "days") {
     const days = new Set((selection?.dates ?? []).map((value) => value.trim()).filter(Boolean));
-    return days.size > 0 && days.has(renewalDate);
+    return recurrenceTouchesDaySet(renewalDate, cadence, days);
   }
   return true;
 }
 
-function calendarEventCopy(subscription: SubscriptionRow) {
+function calendarEventCopy(subscription: SubscriptionRow, billingDateYmd: string) {
   const group = first(subscription.groups);
   const amt = Number(subscription.amount);
   const amountLabel = Number.isFinite(amt) ? amt.toFixed(2) : "—";
-  const title = `${subscription.vendor_name} · ${amountLabel} ${subscription.currency} · ${subscription.renewal_date}`;
+  const title = `${subscription.vendor_name} · ${amountLabel} ${subscription.currency} · ${billingDateYmd}`;
   const description = [
     `Pay: ${amountLabel} ${subscription.currency}`,
-    `Due: ${subscription.renewal_date}`,
+    `Due: ${billingDateYmd}`,
     `Group: ${group?.name ?? "General"}`,
     "Managed in Boopy",
   ].join("\n");
@@ -113,7 +124,7 @@ export async function syncWorkspaceCalendar(
   const [{ data: subscriptions }, { data: mappedEvents }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("id, vendor_name, amount, currency, renewal_date, status, groups(name)")
+      .select("id, vendor_name, amount, currency, cadence, renewal_date, status, groups(name)")
       .eq("status", "active")
       .eq("groups.workspace_id", workspaceId),
     supabase
@@ -129,10 +140,13 @@ export async function syncWorkspaceCalendar(
   }
 
   for (const subscription of (subscriptions ?? []) as SubscriptionRow[]) {
-    if (!matchesSyncSelection(subscription.renewal_date, selection)) {
+    if (!matchesSyncSelection(subscription.renewal_date, subscription.cadence, selection)) {
       continue;
     }
-    const { title, description } = calendarEventCopy(subscription);
+    const billingDate =
+      nextOccurrenceDayKeyOnOrAfter(subscription.renewal_date, subscription.cadence, new Date()) ??
+      subscription.renewal_date;
+    const { title, description } = calendarEventCopy(subscription, billingDate);
     let upserted;
     try {
       upserted = await upsertGoogleEvent({
@@ -141,7 +155,7 @@ export async function syncWorkspaceCalendar(
         eventId: eventBySubscription.get(subscription.id),
         title,
         description,
-        date: subscription.renewal_date,
+        date: billingDate,
       });
     } catch (error) {
       if (
@@ -169,7 +183,7 @@ export async function syncWorkspaceCalendar(
           eventId: eventBySubscription.get(subscription.id),
           title,
           description,
-          date: subscription.renewal_date,
+          date: billingDate,
         });
       } else {
         throw error;
