@@ -42,7 +42,7 @@ export default function LoginPage() {
       return;
     }
     const { data, error: err } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
     setLoading(false);
@@ -62,6 +62,15 @@ export default function LoginPage() {
 
   async function signUp() {
     setError(null);
+    const emailTrim = email.trim();
+    if (!emailTrim || !password) {
+      setError("Enter an email and password to create an account.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
     setLoading(true);
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -71,7 +80,10 @@ export default function LoginPage() {
       );
       return;
     }
-    const { data, error: err } = await supabase.auth.signUp({ email, password });
+    const { data, error: err } = await supabase.auth.signUp({
+      email: emailTrim,
+      password,
+    });
     setLoading(false);
     if (err) {
       setError(err.message);
@@ -164,6 +176,7 @@ export default function LoginPage() {
                     type="password"
                     autoComplete="current-password"
                     required
+                    minLength={6}
                     value={password}
                     onChange={(ev) => setPassword(ev.target.value)}
                   />
