@@ -4,6 +4,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Copy `.env.example` to `.env.local` and set at least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Without them, the app still runs in dev and shows a setup screen instead of crashing.
 
+For **hosted** Supabase: set **Authentication → URL configuration → Site URL** to your production origin (e.g. `https://useboopy.com`), and add **`https://useboopy.com/login`** (and preview URLs if needed) under **Redirect URLs**. Set **`NEXT_PUBLIC_APP_URL`** on Vercel to the same origin so sign-up confirmation emails use the correct link (not `localhost`).
+
 To enable reminder dispatch:
 
 - Set `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET`.

@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { getPublicAppUrl } from "@/lib/auth-site-url";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +84,9 @@ export default function LoginPage() {
     const { data, error: err } = await supabase.auth.signUp({
       email: emailTrim,
       password,
+      options: {
+        emailRedirectTo: `${getPublicAppUrl()}/login`,
+      },
     });
     setLoading(false);
     if (err) {
