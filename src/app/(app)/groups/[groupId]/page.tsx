@@ -169,6 +169,34 @@ export default function GroupDetailPage() {
     setLoading(false);
   }, [groupId, router, searchParams]);
 
+  async function maybeSyncGoogleCalendar(workspaceId: string) {
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const { data: connected } = await supabase
+      .from("calendar_integrations")
+      .select("workspace_id")
+      .eq("workspace_id", workspaceId)
+      .eq("provider", "google")
+      .maybeSingle();
+    if (!connected) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const response = await fetch("/api/integrations/google/resync", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ workspaceId, scope: "all" }),
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      console.warn("Calendar sync failed:", payload.error ?? response.status);
+    }
+  }
+
   useEffect(() => {
     queueMicrotask(() => {
       void load();
@@ -241,6 +269,7 @@ export default function GroupDetailPage() {
     setAddOpen(false);
     setEditRow(null);
     await load();
+    if (group) await maybeSyncGoogleCalendar(group.workspace_id);
   }
 
   async function updateSubscription() {
@@ -281,18 +310,34 @@ export default function GroupDetailPage() {
     }
     setEditRow(null);
     await load();
+    if (group) await maybeSyncGoogleCalendar(group.workspace_id);
   }
 
   async function removeSubscription(id: string) {
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
-    const { error: de } = await supabase.from("subscriptions").delete().eq("id", id);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setError("You are not signed in.");
+      setDeleteId(null);
+      return;
+    }
+    const workspaceId = group?.workspace_id;
     setDeleteId(null);
-    if (de) {
-      setError(de.message);
+
+    const response = await fetch(`/api/subscriptions/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setError(payload.error ?? "Could not delete subscription.");
       return;
     }
     await load();
+    if (workspaceId) await maybeSyncGoogleCalendar(workspaceId);
   }
 
   if (!isSupabaseBrowserConfigured()) {

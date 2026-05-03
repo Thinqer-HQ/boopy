@@ -29,28 +29,18 @@ export async function sendRenewalEmail(args: {
     throw new Error("Resend is not configured");
   }
 
-  const subject = `${args.vendorName} renews in ${args.leadTimeDays} day${
-    args.leadTimeDays === 1 ? "" : "s"
-  }`;
   const amountLabel = Number.isFinite(args.amount)
     ? `${args.amount.toFixed(2)} ${args.currency}`
     : args.currency;
+  const inDays = `${args.leadTimeDays} day${args.leadTimeDays === 1 ? "" : "s"}`;
+  const subject = `Due ${args.renewalDate}: ${args.vendorName} — ${amountLabel} (${inDays})`;
 
   const html = `
-    <div style="font-family: Inter, Arial, sans-serif; line-height: 1.6;">
-      <h2 style="margin-bottom: 8px;">Subscription renewal reminder</h2>
-      <p style="margin: 0 0 12px 0;">
-        <strong>${args.vendorName}</strong> renews in ${args.leadTimeDays} day${
-          args.leadTimeDays === 1 ? "" : "s"
-        }.
-      </p>
-      <ul style="padding-left: 20px; margin-top: 0;">
-        <li>Workspace: ${args.workspaceName}</li>
-        <li>Client: ${args.clientName}</li>
-        <li>Amount: ${amountLabel}</li>
-        <li>Renewal date: ${args.renewalDate}</li>
-      </ul>
-      <p style="margin-top: 16px;">Manage subscriptions in Boopy.</p>
+    <div style="font-family: Inter, Arial, sans-serif; line-height: 1.5;">
+      <p style="margin: 0 0 8px 0;"><strong>Pay:</strong> ${amountLabel}</p>
+      <p style="margin: 0 0 8px 0;"><strong>Due:</strong> ${args.renewalDate}</p>
+      <p style="margin: 0 0 8px 0;"><strong>Vendor:</strong> ${args.vendorName}</p>
+      <p style="margin: 0; color: #444; font-size: 14px;">Renewal in ${inDays} · ${args.clientName} · ${args.workspaceName}</p>
     </div>
   `;
 

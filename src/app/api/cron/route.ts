@@ -151,8 +151,8 @@ export async function GET(request: Request) {
       row.workspace_id,
       {
         leadTimesDays: row.lead_times_days,
-        emailEnabled: true,
-        pushEnabled: true,
+        emailEnabled: row.email_enabled,
+        pushEnabled: row.push_enabled,
       },
     ])
   );
@@ -398,7 +398,15 @@ export async function GET(request: Request) {
     }
   }
 
-  for (const workspaceId of workspaceIds) {
+  const { data: calendarWorkspaceRows } = await supabase
+    .from("calendar_integrations")
+    .select("workspace_id")
+    .eq("provider", "google");
+  const calendarWorkspaceIds = [
+    ...new Set((calendarWorkspaceRows ?? []).map((row) => row.workspace_id as string)),
+  ];
+
+  for (const workspaceId of calendarWorkspaceIds) {
     await syncWorkspaceCalendar(workspaceId).catch((calendarError) => {
       log.warn("calendar_sync_skipped", {
         runId,

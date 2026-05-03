@@ -96,3 +96,21 @@ export async function upsertGoogleEvent(params: {
   }
   return (await response.json()) as { id: string };
 }
+
+export async function deleteGoogleEvent(params: {
+  accessToken: string;
+  calendarId: string;
+  eventId: string;
+}) {
+  const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+    params.calendarId
+  )}/events/${encodeURIComponent(params.eventId)}`;
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${params.accessToken}` },
+  });
+  if (response.status === 404 || response.status === 410) return;
+  if (!response.ok) {
+    throw new Error(`Google calendar delete failed (${response.status})`);
+  }
+}

@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getUserOrThrow } from "@/lib/auth";
+import { syncWorkspaceCalendar } from "@/lib/calendar/sync";
 import { extractDocumentText } from "@/lib/ingestion/extract-text";
 import { parseDocumentCandidate } from "@/lib/ingestion/parser";
+import { log } from "@/lib/log";
 import { supabaseService } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -222,6 +224,13 @@ export async function PATCH(request: Request) {
     .eq("id", candidateId)
     .eq("workspace_id", workspaceId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  syncWorkspaceCalendar(workspaceId).catch((err) => {
+    log.warn("calendar_sync_after_doc_confirm_failed", {
+      workspaceId,
+      error: err instanceof Error ? err.message : "unknown",
+    });
+  });
 
   return NextResponse.json({ ok: true, subscriptionId: created.id });
 }

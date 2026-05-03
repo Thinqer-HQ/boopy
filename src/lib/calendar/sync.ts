@@ -1,4 +1,8 @@
-import { refreshGoogleAccessToken, upsertGoogleEvent } from "@/lib/calendar/google";
+import {
+  deleteGoogleEvent,
+  refreshGoogleAccessToken,
+  upsertGoogleEvent,
+} from "@/lib/calendar/google";
 import { supabaseService } from "@/lib/supabase/server";
 
 type IntegrationRow = {
@@ -12,6 +16,8 @@ type IntegrationRow = {
 type SubscriptionRow = {
   id: string;
   vendor_name: string;
+  amount: number;
+  currency: string;
   renewal_date: string;
   status: "active" | "paused" | "cancelled";
   groups: { name: string } | Array<{ name: string }> | null;
@@ -48,6 +54,20 @@ function matchesSyncSelection(renewalDate: string, selection?: CalendarSyncSelec
     return days.size > 0 && days.has(renewalDate);
   }
   return true;
+}
+
+function calendarEventCopy(subscription: SubscriptionRow) {
+  const group = first(subscription.groups);
+  const amt = Number(subscription.amount);
+  const amountLabel = Number.isFinite(amt) ? amt.toFixed(2) : "—";
+  const title = `${subscription.vendor_name} · ${amountLabel} ${subscription.currency} · ${subscription.renewal_date}`;
+  const description = [
+    `Pay: ${amountLabel} ${subscription.currency}`,
+    `Due: ${subscription.renewal_date}`,
+    `Group: ${group?.name ?? "General"}`,
+    "Managed in Boopy",
+  ].join("\n");
+  return { title, description };
 }
 
 export async function syncWorkspaceCalendar(
@@ -88,10 +108,12 @@ export async function syncWorkspaceCalendar(
   }
   if (!accessToken) return;
 
+  const isFullSync = !selection || (selection.scope ?? "all") === "all";
+
   const [{ data: subscriptions }, { data: mappedEvents }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select("id, vendor_name, renewal_date, status, groups(name)")
+      .select("id, vendor_name, amount, currency, renewal_date, status, groups(name)")
       .eq("status", "active")
       .eq("groups.workspace_id", workspaceId),
     supabase
@@ -110,15 +132,15 @@ export async function syncWorkspaceCalendar(
     if (!matchesSyncSelection(subscription.renewal_date, selection)) {
       continue;
     }
-    const group = first(subscription.groups);
+    const { title, description } = calendarEventCopy(subscription);
     let upserted;
     try {
       upserted = await upsertGoogleEvent({
         accessToken,
         calendarId: config.calendar_id || "primary",
         eventId: eventBySubscription.get(subscription.id),
-        title: `${subscription.vendor_name} renewal`,
-        description: `Boopy reminder for ${group?.name ?? "General"}`,
+        title,
+        description,
         date: subscription.renewal_date,
       });
     } catch (error) {
@@ -145,8 +167,8 @@ export async function syncWorkspaceCalendar(
           accessToken,
           calendarId: config.calendar_id || "primary",
           eventId: eventBySubscription.get(subscription.id),
-          title: `${subscription.vendor_name} renewal`,
-          description: `Boopy reminder for ${group?.name ?? "General"}`,
+          title,
+          description,
           date: subscription.renewal_date,
         });
       } else {
@@ -163,4 +185,178 @@ export async function syncWorkspaceCalendar(
       { onConflict: "workspace_id,subscription_id,provider" }
     );
   }
+
+  if (isFullSync) {
+    await pruneInactiveGoogleEvents({
+      supabase,
+      workspaceId,
+      calendarId: config.calendar_id || "primary",
+      accessToken,
+      refreshToken,
+    });
+  }
+}
+
+async function pruneInactiveGoogleEvents(args: {
+  supabase: ReturnType<typeof supabaseService>;
+  workspaceId: string;
+  calendarId: string;
+  accessToken: string;
+  refreshToken: string | null;
+}) {
+  const { supabase, workspaceId, calendarId, refreshToken } = args;
+  let accessToken = args.accessToken;
+
+  const { data: mappings } = await supabase
+    .from("calendar_events")
+    .select("subscription_id, external_event_id")
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "google");
+
+  const { data: workspaceSubs } = await supabase
+    .from("subscriptions")
+    .select("id, status, groups!inner(workspace_id)")
+    .eq("groups.workspace_id", workspaceId);
+
+  const activeIds = new Set(
+    (workspaceSubs ?? []).filter((row) => row.status === "active").map((row) => row.id as string)
+  );
+
+  for (const row of (mappings ?? []) as { subscription_id: string; external_event_id: string }[]) {
+    if (activeIds.has(row.subscription_id)) continue;
+
+    try {
+      await deleteGoogleEvent({
+        accessToken,
+        calendarId,
+        eventId: row.external_event_id,
+      });
+    } catch (error) {
+      if (
+        refreshToken &&
+        error instanceof Error &&
+        error.message.includes("Google calendar delete failed (401)")
+      ) {
+        const refreshed = await refreshGoogleAccessToken(refreshToken);
+        accessToken = refreshed.access_token;
+        await supabase
+          .from("calendar_integrations")
+          .update({
+            access_token: refreshed.access_token,
+            token_expires_at:
+              refreshed.expires_in && Number.isFinite(refreshed.expires_in)
+                ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+                : null,
+          })
+          .eq("workspace_id", workspaceId)
+          .eq("provider", "google");
+        await deleteGoogleEvent({
+          accessToken,
+          calendarId,
+          eventId: row.external_event_id,
+        });
+      } else {
+        throw error;
+      }
+    }
+
+    await supabase
+      .from("calendar_events")
+      .delete()
+      .eq("workspace_id", workspaceId)
+      .eq("provider", "google")
+      .eq("subscription_id", row.subscription_id);
+  }
+}
+
+/** Removes the mapped Google event and `calendar_events` row before deleting a subscription (avoids orphan calendar events). */
+export async function removeGoogleCalendarEventForSubscription(
+  workspaceId: string,
+  subscriptionId: string
+) {
+  const supabase = supabaseService();
+  const { data: integration } = await supabase
+    .from("calendar_integrations")
+    .select("access_token, refresh_token, token_expires_at, calendar_id")
+    .eq("workspace_id", workspaceId)
+    .eq("provider", "google")
+    .maybeSingle();
+  if (!integration) return;
+
+  const { data: mapping } = await supabase
+    .from("calendar_events")
+    .select("external_event_id")
+    .eq("workspace_id", workspaceId)
+    .eq("subscription_id", subscriptionId)
+    .eq("provider", "google")
+    .maybeSingle();
+  if (!mapping?.external_event_id) return;
+
+  const calendarId = (integration.calendar_id as string) || "primary";
+  let accessToken = integration.access_token as string | null;
+  const refreshToken = integration.refresh_token as string | null;
+  const expiresAt = integration.token_expires_at
+    ? new Date(integration.token_expires_at as string).getTime()
+    : null;
+  const shouldRefresh =
+    !accessToken ||
+    (expiresAt !== null && Number.isFinite(expiresAt) && Date.now() >= expiresAt - 60_000);
+  if (shouldRefresh && refreshToken) {
+    const refreshed = await refreshGoogleAccessToken(refreshToken);
+    accessToken = refreshed.access_token;
+    await supabase
+      .from("calendar_integrations")
+      .update({
+        access_token: refreshed.access_token,
+        token_expires_at:
+          refreshed.expires_in && Number.isFinite(refreshed.expires_in)
+            ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+            : null,
+      })
+      .eq("workspace_id", workspaceId)
+      .eq("provider", "google");
+  }
+  if (!accessToken) return;
+
+  try {
+    await deleteGoogleEvent({
+      accessToken,
+      calendarId,
+      eventId: mapping.external_event_id,
+    });
+  } catch (error) {
+    if (
+      refreshToken &&
+      error instanceof Error &&
+      error.message.includes("Google calendar delete failed (401)")
+    ) {
+      const refreshed = await refreshGoogleAccessToken(refreshToken);
+      accessToken = refreshed.access_token;
+      await supabase
+        .from("calendar_integrations")
+        .update({
+          access_token: refreshed.access_token,
+          token_expires_at:
+            refreshed.expires_in && Number.isFinite(refreshed.expires_in)
+              ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString()
+              : null,
+        })
+        .eq("workspace_id", workspaceId)
+        .eq("provider", "google");
+      await deleteGoogleEvent({
+        accessToken,
+        calendarId,
+        eventId: mapping.external_event_id,
+      });
+    } else {
+      throw error;
+    }
+  }
+
+  await supabase
+    .from("calendar_events")
+    .delete()
+    .eq("workspace_id", workspaceId)
+    .eq("subscription_id", subscriptionId)
+    .eq("provider", "google");
 }

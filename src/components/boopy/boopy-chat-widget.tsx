@@ -6,7 +6,7 @@ import { Lock, MessageCircle, Send, Sparkles, X } from "lucide-react";
 import { useId, useState } from "react";
 
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { canUseBoopyAssistant } from "@/lib/billing/plan";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
@@ -197,9 +197,12 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
                 chat. It is included with{" "}
                 <span className="text-foreground font-medium">Boopy Pro</span>.
               </p>
-              <Button asChild className="w-full">
-                <Link href="/settings/billing">Upgrade to Pro</Link>
-              </Button>
+              <Link
+                href="/settings/billing"
+                className={cn(buttonVariants(), "inline-flex w-full justify-center")}
+              >
+                Upgrade to Pro
+              </Link>
             </div>
           )}
         </div>

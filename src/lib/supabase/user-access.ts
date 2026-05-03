@@ -9,7 +9,12 @@ import { getEnv } from "@/lib/env";
  */
 export function supabaseForUserAccessToken(accessToken: string) {
   const env = getEnv();
-  return createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+  const url = env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) {
+    throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set");
+  }
+  return createClient(url, anonKey, {
     global: {
       headers: { Authorization: `Bearer ${accessToken}` },
     },

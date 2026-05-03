@@ -12,7 +12,13 @@ function jsonOk<T extends Record<string, unknown>>(payload: T) {
   return { ok: true as const, ...payload };
 }
 
-async function primaryWorkspaceId(supabase: SupabaseClient) {
+async function primaryWorkspaceId(supabase: SupabaseClient): Promise<
+  | { error: string; workspace: null }
+  | {
+      error: null;
+      workspace: { id: string; name: string; default_currency: string | null };
+    }
+> {
   const { data, error } = await supabase
     .from("workspaces")
     .select("id, name, default_currency")
@@ -20,9 +26,10 @@ async function primaryWorkspaceId(supabase: SupabaseClient) {
     .limit(1)
     .maybeSingle();
 
-  if (error) return { error: error.message, workspace: null as const };
-  if (!data)
-    return { error: "No workspace found. Complete onboarding first.", workspace: null as const };
+  if (error) return { error: error.message, workspace: null };
+  if (!data) {
+    return { error: "No workspace found. Complete onboarding first.", workspace: null };
+  }
   return { error: null, workspace: data };
 }
 

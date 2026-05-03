@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
@@ -19,12 +19,28 @@ export default function BillingSettingsPage() {
   const { state, reload } = usePrimaryWorkspace();
   const workspaceId = state.status === "ready" ? state.workspaceId : null;
   const billing = useWorkspaceBilling(workspaceId);
+  const { refetch: refetchBilling } = billing;
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkoutResult = useMemo(() => searchParams.get("checkout"), [searchParams]);
   const capabilities = getPlanCapabilities(billing.plan);
+
+  useEffect(() => {
+    if (checkoutResult !== "success") return;
+    if (billing.plan === "pro") return;
+
+    let polls = 0;
+    const maxPolls = 24;
+    const intervalId = window.setInterval(() => {
+      polls += 1;
+      void refetchBilling();
+      if (polls >= maxPolls) window.clearInterval(intervalId);
+    }, 1500);
+
+    return () => window.clearInterval(intervalId);
+  }, [checkoutResult, billing.plan, refetchBilling]);
 
   async function startCheckout() {
     if (!workspaceId) return;
@@ -166,7 +182,8 @@ export default function BillingSettingsPage() {
         <Alert>
           <AlertTitle>Checkout complete</AlertTitle>
           <AlertDescription>
-            Stripe checkout succeeded. Plan updates may take a few seconds to appear.
+            Stripe checkout succeeded. Your plan refreshes automatically; this can take a few
+            seconds after payment.
           </AlertDescription>
         </Alert>
       ) : null}
