@@ -27,6 +27,8 @@
     "format:check": "prettier . --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "typecheck:marketing": "npm run typecheck --workspace @boopy/marketing",
+    "db:push": "supabase db push",
+    "db:link": "supabase link",
     "prepare": "husky"
   },
   "lint-staged": {
