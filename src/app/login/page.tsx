@@ -148,7 +148,7 @@ export default function LoginPage() {
           <div className="flex flex-col space-y-1 text-center lg:text-left">
             <h1 className="font-heading text-2xl font-semibold tracking-tight">Welcome back</h1>
             <p className="text-muted-foreground text-sm">
-              Sign in with your Supabase email and password.
+              Sign in with your Boopy email and password.
             </p>
           </div>
 
