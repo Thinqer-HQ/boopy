@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Sparkles } from "lucide-react";
+import { BellRing, Loader2, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -28,15 +28,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState<"sign-in" | "sign-up" | null>(null);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
+    setPending("sign-in");
     const supabase = getSupabaseBrowser();
     if (!supabase) {
-      setLoading(false);
+      setPending(null);
       setError(
         "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local."
       );
@@ -46,7 +46,7 @@ export default function LoginPage() {
       email: email.trim(),
       password,
     });
-    setLoading(false);
+    setPending(null);
     if (err) {
       setError(err.message);
       return;
@@ -72,10 +72,10 @@ export default function LoginPage() {
       setError("Password must be at least 6 characters.");
       return;
     }
-    setLoading(true);
+    setPending("sign-up");
     const supabase = getSupabaseBrowser();
     if (!supabase) {
-      setLoading(false);
+      setPending(null);
       setError(
         "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local."
       );
@@ -88,7 +88,7 @@ export default function LoginPage() {
         emailRedirectTo: `${getPublicAppUrl()}/login`,
       },
     });
-    setLoading(false);
+    setPending(null);
     if (err) {
       setError(err.message);
       return;
@@ -182,8 +182,20 @@ export default function LoginPage() {
                   </Alert>
                 ) : null}
 
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Please wait…" : "Sign in"}
+                <Button
+                  type="submit"
+                  className="w-full gap-2"
+                  disabled={pending !== null}
+                  aria-busy={pending === "sign-in"}
+                >
+                  {pending === "sign-in" ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      Signing in…
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
                 </Button>
               </form>
             </CardContent>
@@ -196,11 +208,19 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full"
-                disabled={loading}
+                className="w-full gap-2"
+                disabled={pending !== null}
+                aria-busy={pending === "sign-up"}
                 onClick={() => void signUp()}
               >
-                Create an account
+                {pending === "sign-up" ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    Creating account…
+                  </>
+                ) : (
+                  "Create an account"
+                )}
               </Button>
             </CardFooter>
           </Card>
