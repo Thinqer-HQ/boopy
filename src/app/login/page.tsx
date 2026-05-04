@@ -130,17 +130,6 @@ export default function LoginPage() {
             Built for agencies and operators
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          UI components from{" "}
-          <a
-            href="https://ui.shadcn.com/"
-            className="hover:text-foreground underline underline-offset-4"
-            target="_blank"
-            rel="noreferrer"
-          >
-            shadcn/ui
-          </a>
-        </p>
       </div>
 
       <div className="flex flex-col justify-center gap-6 p-6 md:p-10 lg:p-12">
