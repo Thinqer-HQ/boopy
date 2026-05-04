@@ -946,16 +946,18 @@ export default function SubscriptionsCardsPage() {
               />
             </div>
           </div>
-          <DialogFooter className="justify-between">
+          <DialogFooter className="flex flex-row flex-wrap items-center justify-between gap-3">
             <Button
-              variant="destructive"
+              variant="ghost"
+              size="sm"
               disabled={saving}
               type="button"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8 shrink-0 px-2 text-xs font-normal"
               onClick={() => setSubscriptionDeleteOpen(true)}
             >
-              Delete
+              Delete subscription…
             </Button>
-            <div className="flex gap-2">
+            <div className="flex min-w-0 flex-1 justify-end gap-2">
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                 Cancel
               </Button>
