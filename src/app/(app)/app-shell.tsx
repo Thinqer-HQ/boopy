@@ -28,6 +28,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   } | null>(null);
   const bootstrapped = useRef(false);
 
+  /** Send users to login when the client session ends (sign-out, refresh failure, revoked refresh token, etc.). */
+  useEffect(() => {
+    if (missingSupabase) return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        router.replace("/login");
+        router.refresh();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [missingSupabase, router]);
+
   useEffect(() => {
     if (missingSupabase) {
       return;

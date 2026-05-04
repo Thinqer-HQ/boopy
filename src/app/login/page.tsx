@@ -1,6 +1,7 @@
 "use client";
 
 import { BellRing, Loader2, Sparkles } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,20 +20,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { getHcaptchaSiteKey } from "@/lib/hcaptcha-site-key";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 import { signUpErrorLines } from "@/lib/supabase/sign-up-error-message";
 import { cn } from "@/lib/utils";
 
+const HCaptchaLazy = dynamic(() => import("@hcaptcha/react-hcaptcha"), {
+  ssr: false,
+});
+
 export default function LoginPage() {
   const router = useRouter();
+  const hcaptchaSiteKey = getHcaptchaSiteKey();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<"sign-in" | "sign-up" | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaMountKey, setCaptchaMountKey] = useState(0);
+
+  function resetHcaptcha() {
+    setCaptchaToken(null);
+    setCaptchaMountKey((k) => k + 1);
+  }
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (hcaptchaSiteKey && !captchaToken) {
+      setError("Complete the security check before signing in.");
+      return;
+    }
     setPending("sign-in");
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -42,22 +60,27 @@ export default function LoginPage() {
       );
       return;
     }
-    const { data, error: err } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    setPending(null);
-    if (err) {
-      setError(err.message);
-      return;
-    }
-    if (data.session) {
-      await fetch("/api/bootstrap", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
+    try {
+      const { data, error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+        options: hcaptchaSiteKey && captchaToken ? { captchaToken } : undefined,
       });
-      router.replace("/");
-      router.refresh();
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      if (data.session) {
+        await fetch("/api/bootstrap", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        router.replace("/");
+        router.refresh();
+      }
+    } finally {
+      setPending(null);
+      if (hcaptchaSiteKey) resetHcaptcha();
     }
   }
 
@@ -72,6 +95,10 @@ export default function LoginPage() {
       setError("Password must be at least 6 characters.");
       return;
     }
+    if (hcaptchaSiteKey && !captchaToken) {
+      setError("Complete the security check before creating an account.");
+      return;
+    }
     setPending("sign-up");
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -81,28 +108,32 @@ export default function LoginPage() {
       );
       return;
     }
-    const { data, error: err } = await supabase.auth.signUp({
-      email: emailTrim,
-      password,
-      options: {
-        // Use the tab’s origin so Supabase Redirect URLs match (avoids www vs apex vs preview mismatches with NEXT_PUBLIC_APP_URL).
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
-    });
-    setPending(null);
-    if (err) {
-      setError(signUpErrorLines(err.message).join("\n"));
-      return;
-    }
-    if (data.session) {
-      await fetch("/api/bootstrap", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
+    try {
+      const { data, error: err } = await supabase.auth.signUp({
+        email: emailTrim,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+          ...(hcaptchaSiteKey && captchaToken ? { captchaToken } : {}),
+        },
       });
-      router.replace("/");
-      router.refresh();
-    } else {
-      setError("Check your email to confirm your account, then sign in.");
+      if (err) {
+        setError(signUpErrorLines(err.message).join("\n"));
+        return;
+      }
+      if (data.session) {
+        await fetch("/api/bootstrap", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        router.replace("/");
+        router.refresh();
+      } else {
+        setError("Check your email to confirm your account, then sign in.");
+      }
+    } finally {
+      setPending(null);
+      if (hcaptchaSiteKey) resetHcaptcha();
     }
   }
 
@@ -176,6 +207,25 @@ export default function LoginPage() {
                   />
                 </div>
 
+                {hcaptchaSiteKey ? (
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground text-xs">Security check</Label>
+                    <HCaptchaLazy
+                      key={captchaMountKey}
+                      sitekey={hcaptchaSiteKey}
+                      size="compact"
+                      sentry={false}
+                      theme="light"
+                      onVerify={(token) => setCaptchaToken(token)}
+                      onExpire={() => setCaptchaToken(null)}
+                      onError={() => {
+                        setCaptchaToken(null);
+                        setError("Security check failed to load. Refresh the page and try again.");
+                      }}
+                    />
+                  </div>
+                ) : null}
+
                 {error ? (
                   <Alert variant="destructive">
                     <AlertTitle>Something went wrong</AlertTitle>
@@ -186,7 +236,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full gap-2"
-                  disabled={pending !== null}
+                  disabled={pending !== null || Boolean(hcaptchaSiteKey && !captchaToken)}
                   aria-busy={pending === "sign-in"}
                 >
                   {pending === "sign-in" ? (
@@ -210,7 +260,7 @@ export default function LoginPage() {
                 type="button"
                 variant="outline"
                 className="w-full gap-2"
-                disabled={pending !== null}
+                disabled={pending !== null || Boolean(hcaptchaSiteKey && !captchaToken)}
                 aria-busy={pending === "sign-up"}
                 onClick={() => void signUp()}
               >
