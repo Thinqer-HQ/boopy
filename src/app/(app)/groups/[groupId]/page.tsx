@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
+import { SubscriptionScanFill } from "@/components/boopy/subscription-scan-fill";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -695,8 +696,29 @@ export default function GroupDetailPage() {
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className={groupSubscriptionDialogClassName}>
           <DialogHeader className="space-y-1">
-            <DialogTitle>Add subscription</DialogTitle>
-            <DialogDescription>Track a recurring charge for this group.</DialogDescription>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0 space-y-1">
+                <DialogTitle>Add subscription</DialogTitle>
+                <DialogDescription>Track a recurring charge for this group.</DialogDescription>
+              </div>
+              {group?.workspace_id ? (
+                <SubscriptionScanFill
+                  workspaceId={group.workspace_id}
+                  disabled={saving}
+                  onApply={(patch) => {
+                    if (patch.vendor != null) setVendor(patch.vendor);
+                    if (patch.amount != null) setAmount(patch.amount);
+                    if (patch.currency != null) setCurrency(patch.currency);
+                    if (patch.cadence != null) setCadence(patch.cadence);
+                    if (patch.renewalDate != null) setRenewalDate(patch.renewalDate);
+                    if (patch.startDate != null) setStartDate(patch.startDate);
+                    if (patch.endDate != null) setEndDate(patch.endDate);
+                    if (patch.category != null) setCategory(patch.category);
+                    if (patch.notes != null) setNotes(patch.notes);
+                  }}
+                />
+              ) : null}
+            </div>
           </DialogHeader>
           {formDialog}
           <DialogFooter>

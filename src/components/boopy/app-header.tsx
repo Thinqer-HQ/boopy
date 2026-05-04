@@ -181,13 +181,18 @@ export function AppHeader({ className }: { className?: string }) {
 
         <Link
           href="/"
-          className="font-heading text-foreground min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg"
+          className="font-heading text-foreground min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:text-lg"
         >
           Boopy
         </Link>
-        <span className="text-muted-foreground hidden text-xs lg:inline">
-          Subscription reminders
-        </span>
+        <div className="text-muted-foreground hidden min-w-0 flex-col justify-center text-xs leading-tight sm:flex">
+          <span>Subscription reminders</span>
+          {workspaceSettings?.name ? (
+            <span className="text-foreground max-w-[min(16rem,calc(100vw-10rem))] truncate font-medium">
+              {workspaceSettings.name}
+            </span>
+          ) : null}
+        </div>
         <nav className="ml-0 hidden items-center gap-1 sm:ml-2 sm:flex">
           {APP_NAV.map((item) => (
             <Link
