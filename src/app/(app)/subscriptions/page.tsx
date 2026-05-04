@@ -634,7 +634,7 @@ export default function SubscriptionsCardsPage() {
       ) : null}
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Create a subscription directly from this view.</DialogDescription>
@@ -791,7 +791,7 @@ export default function SubscriptionsCardsPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit subscription</DialogTitle>
             <DialogDescription>
@@ -951,7 +951,7 @@ export default function SubscriptionsCardsPage() {
       </Dialog>
 
       <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add group</DialogTitle>
             <DialogDescription>Create a new group without leaving Subscriptions.</DialogDescription>

@@ -680,7 +680,7 @@ export default function GroupDetailPage() {
       </Card>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Track a recurring charge for this group.</DialogDescription>
@@ -706,7 +706,7 @@ export default function GroupDetailPage() {
       </Dialog>
 
       <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit subscription</DialogTitle>
           </DialogHeader>
