@@ -60,6 +60,7 @@ export default function GroupsPage() {
   const [newNotes, setNewNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [groupDeleteNameConfirm, setGroupDeleteNameConfirm] = useState("");
   const [editRow, setEditRow] = useState<GroupRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -123,6 +124,7 @@ export default function GroupsPage() {
     if (!supabase) return;
     const { error } = await supabase.from("groups").delete().eq("id", id);
     setDeleteId(null);
+    setGroupDeleteNameConfirm("");
     if (error) {
       setListError(error.message);
       return;
@@ -193,6 +195,9 @@ export default function GroupsPage() {
 
   const groupCapabilities = getPlanCapabilities(billing.plan);
   const groupLimitReached = !canCreateClient(billing.plan, groups.length);
+  const pendingDeleteGroup = deleteId ? (groups.find((g) => g.id === deleteId) ?? null) : null;
+  const groupDeleteNameMatches =
+    pendingDeleteGroup !== null && groupDeleteNameConfirm.trim() === pendingDeleteGroup.name.trim();
 
   return (
     <div className="flex flex-col gap-6 p-4 md:p-8">
@@ -304,6 +309,7 @@ export default function GroupsPage() {
                             className="gap-2"
                             onClick={(event) => {
                               event.stopPropagation();
+                              setGroupDeleteNameConfirm("");
                               setDeleteId(group.id);
                             }}
                           >
@@ -398,7 +404,15 @@ export default function GroupsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+      <Dialog
+        open={!!deleteId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDeleteId(null);
+            setGroupDeleteNameConfirm("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete group?</DialogTitle>
@@ -406,12 +420,38 @@ export default function GroupsPage() {
               This removes the group and all subscriptions under it. This cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          {pendingDeleteGroup ? (
+            <div className="grid gap-2 py-2">
+              <Label htmlFor="confirm-group-name">Type the group name to confirm</Label>
+              <p className="text-foreground text-sm font-medium" id="group-name-to-match">
+                {pendingDeleteGroup.name}
+              </p>
+              <Input
+                id="confirm-group-name"
+                value={groupDeleteNameConfirm}
+                onChange={(e) => setGroupDeleteNameConfirm(e.target.value)}
+                placeholder={pendingDeleteGroup.name}
+                autoComplete="off"
+                aria-labelledby="group-name-to-match"
+              />
+            </div>
+          ) : null}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteId(null);
+                setGroupDeleteNameConfirm("");
+              }}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={() => deleteId && void handleDelete(deleteId)}>
-              Delete
+            <Button
+              variant="destructive"
+              disabled={!groupDeleteNameMatches}
+              onClick={() => deleteId && void handleDelete(deleteId)}
+            >
+              Delete group
             </Button>
           </DialogFooter>
         </DialogContent>

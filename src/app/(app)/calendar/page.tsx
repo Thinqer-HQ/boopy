@@ -14,6 +14,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -42,6 +43,19 @@ type SubscriptionRow = {
 
 type IntegrationRow = {
   provider: string;
+};
+
+type MonthChargeLine = {
+  subscriptionId: string;
+  vendor: string;
+  currency: string;
+  amountEach: number;
+  occurrences: number;
+  lineTotal: number;
+  cadence: SubscriptionCadence;
+  status: SubscriptionRow["status"];
+  groupId: string;
+  groupName: string;
 };
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -77,6 +91,7 @@ export default function CalendarPage() {
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [monthSummaryOpen, setMonthSummaryOpen] = useState(false);
   const [selectedSyncDays, setSelectedSyncDays] = useState<Set<string>>(new Set());
   const [syncScope, setSyncScope] = useState<"all" | "month" | "days">("month");
   const [syncing, setSyncing] = useState(false);
@@ -162,6 +177,80 @@ export default function CalendarPage() {
       return date;
     });
   }, [gridStart]);
+
+  const monthRangeUtc = useMemo(() => {
+    const start = new Date(`${selectedMonth}-01T00:00:00.000Z`);
+    const y = start.getUTCFullYear();
+    const m = start.getUTCMonth();
+    const end = new Date(Date.UTC(y, m + 1, 0));
+    return { start, end };
+  }, [selectedMonth]);
+
+  const monthChargeRollup = useMemo(() => {
+    const { start, end } = monthRangeUtc;
+    const lines: MonthChargeLine[] = [];
+    for (const subscription of visibleSubscriptions) {
+      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
+      const dayKeys = recurrenceOccurrenceDayKeysInUtcRange(
+        subscription.renewal_date,
+        subscription.cadence,
+        start,
+        end,
+        bounds
+      );
+      const occurrences = dayKeys.length;
+      if (occurrences === 0) continue;
+      const amountEach = Number(subscription.amount ?? 0);
+      if (!Number.isFinite(amountEach)) continue;
+      const currency = (subscription.currency ?? "USD").toUpperCase();
+      const group = first(subscription.groups);
+      lines.push({
+        subscriptionId: subscription.id,
+        vendor: subscription.vendor_name,
+        currency,
+        amountEach,
+        occurrences,
+        lineTotal: amountEach * occurrences,
+        cadence: subscription.cadence,
+        status: subscription.status,
+        groupId: group?.id ?? "unknown",
+        groupName: group?.name ?? "Unknown",
+      });
+    }
+
+    const totalsMap = new Map<string, number>();
+    for (const line of lines) {
+      totalsMap.set(line.currency, (totalsMap.get(line.currency) ?? 0) + line.lineTotal);
+    }
+    const totalsByCurrency = Array.from(totalsMap.entries())
+      .map(([currency, total]) => ({ currency, total }))
+      .sort((a, b) => a.currency.localeCompare(b.currency));
+
+    const groupMap = new Map<string, { name: string; lines: MonthChargeLine[] }>();
+    for (const line of lines) {
+      const bucket = groupMap.get(line.groupId);
+      if (bucket) {
+        bucket.lines.push(line);
+      } else {
+        groupMap.set(line.groupId, { name: line.groupName, lines: [line] });
+      }
+    }
+    const byGroup = Array.from(groupMap.entries())
+      .sort((a, b) => a[1].name.localeCompare(b[1].name))
+      .map(([groupId, bucket]) => {
+        const subMap = new Map<string, number>();
+        for (const l of bucket.lines) {
+          subMap.set(l.currency, (subMap.get(l.currency) ?? 0) + l.lineTotal);
+        }
+        const subtotalsByCurrency = Array.from(subMap.entries())
+          .map(([currency, total]) => ({ currency, total }))
+          .sort((a, b) => a.currency.localeCompare(b.currency));
+        const sortedLines = [...bucket.lines].sort((a, b) => a.vendor.localeCompare(b.vendor));
+        return { groupId, name: bucket.name, lines: sortedLines, subtotalsByCurrency };
+      });
+
+    return { lines, totalsByCurrency, byGroup };
+  }, [visibleSubscriptions, monthRangeUtc]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, SubscriptionRow[]>();
@@ -419,7 +508,32 @@ export default function CalendarPage() {
       <Card className="overflow-visible">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Calendar</CardTitle>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <CardTitle className="leading-tight">Calendar</CardTitle>
+                <button
+                  type="button"
+                  onClick={() => setMonthSummaryOpen(true)}
+                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring max-w-full rounded-sm text-left text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                  aria-haspopup="dialog"
+                  aria-expanded={monthSummaryOpen}
+                  aria-label="Open detailed month spend summary"
+                >
+                  {monthChargeRollup.totalsByCurrency.length === 0 ? (
+                    <span className="tabular-nums">No renewals this month</span>
+                  ) : (
+                    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums">
+                      {monthChargeRollup.totalsByCurrency.map((bucket, index) => (
+                        <span key={bucket.currency}>
+                          {index > 0 ? " · " : null}
+                          {bucket.currency} {formatCurrency(bucket.total, bucket.currency)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
             <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
               <Button
                 variant="outline"
@@ -572,6 +686,91 @@ export default function CalendarPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={monthSummaryOpen} onOpenChange={setMonthSummaryOpen}>
+        <DialogContent className="max-h-[min(90dvh,36rem)] gap-4 overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Month spend — {monthLabel(monthCursor)}</DialogTitle>
+            <DialogDescription className="text-left">
+              Renewal charges scheduled in this month with current filters. One line per
+              subscription; yearly or quarterly renewals count once at their full invoice when they
+              land this month.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="border-border space-y-3 border-y py-3">
+            <div>
+              <p className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
+                Totals
+              </p>
+              {monthChargeRollup.totalsByCurrency.length === 0 ? (
+                <p className="text-muted-foreground mt-1 font-mono text-xs">
+                  No renewal charges in this month for the current filters.
+                </p>
+              ) : (
+                <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap">
+                  {monthChargeRollup.totalsByCurrency
+                    .map((t) => `${t.currency}  ${formatCurrency(t.total, t.currency)}`)
+                    .join("\n")}
+                </pre>
+              )}
+            </div>
+            {monthChargeRollup.byGroup.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
+                  By group
+                </p>
+                {monthChargeRollup.byGroup.map((group, groupIndex) => (
+                  <div
+                    key={group.groupId}
+                    className={`space-y-1.5 ${groupIndex > 0 ? "border-border/80 border-t border-dotted pt-3" : ""}`}
+                  >
+                    <p className="text-muted-foreground font-mono text-xs font-semibold tracking-wide uppercase">
+                      {group.name}
+                    </p>
+                    <div className="space-y-2">
+                      {group.lines.map((line) => {
+                        const each = formatCurrency(line.amountEach, line.currency);
+                        const sum = formatCurrency(line.lineTotal, line.currency);
+                        const mult = line.occurrences > 1 ? ` ×${line.occurrences}` : "";
+                        return (
+                          <div
+                            key={line.subscriptionId}
+                            className="font-mono text-[11px] leading-snug"
+                          >
+                            <p className="text-foreground">{line.vendor}</p>
+                            <p className="text-muted-foreground pl-2">
+                              <span className="tabular-nums">
+                                {line.currency} {each}
+                                {mult} → {sum}
+                              </span>
+                              <span className="opacity-90">
+                                {" "}
+                                · {line.cadence} · {line.status}
+                              </span>
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="font-mono text-[11px] leading-relaxed tabular-nums">
+                      {group.subtotalsByCurrency.map((s) => (
+                        <div key={s.currency}>
+                          Subtotal {s.currency} {formatCurrency(s.total, s.currency)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setMonthSummaryOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(selectedDay)}

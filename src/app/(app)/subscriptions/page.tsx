@@ -95,6 +95,7 @@ export default function SubscriptionsCardsPage() {
   const [newGroupNotes, setNewGroupNotes] = useState("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingSubscriptionId, setEditingSubscriptionId] = useState<string | null>(null);
+  const [subscriptionDeleteOpen, setSubscriptionDeleteOpen] = useState(false);
   const currencyOptions = useMemo(() => getCurrencyOptions(), []);
 
   const load = useCallback(async () => {
@@ -141,6 +142,12 @@ export default function SubscriptionsCardsPage() {
       void load();
     });
   }, [load]);
+
+  useEffect(() => {
+    if (!editDialogOpen) {
+      setSubscriptionDeleteOpen(false);
+    }
+  }, [editDialogOpen]);
 
   const grouped = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -605,7 +612,7 @@ export default function SubscriptionsCardsPage() {
                           / {cadenceLabel(subscription.cadence)}
                         </span>
                         <span>Renews: {subscription.renewal_date}</span>
-                        <span>
+                        <span className="tabular-nums">
                           Term: {subscription.start_date ? subscription.start_date : "—"}
                           {" → "}
                           {subscription.end_date ?? "open-ended"}
@@ -722,30 +729,34 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setRenewalDate(event.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="sub-start">Start date (optional)</Label>
-              <Input
-                id="sub-start"
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-              />
-              <p className="text-muted-foreground text-xs">
-                First day this subscription counts (optional).
-              </p>
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2 xl:col-span-3">
+              <div className="grid min-w-0 gap-1.5">
+                <Label htmlFor="sub-start">Start date (optional)</Label>
+                <Input
+                  id="sub-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5">
+                <Label htmlFor="sub-end">End date (optional)</Label>
+                <Input
+                  id="sub-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="sub-end">End date (optional)</Label>
-              <Input
-                id="sub-end"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-              />
-              <p className="text-muted-foreground text-xs">
-                No billing or reminders after this day (UTC). Leave blank for ongoing.
-              </p>
-            </div>
+            <p className="text-muted-foreground -mt-1 text-xs sm:col-span-2 xl:col-span-3">
+              <span className="block">Start: first day this subscription counts (optional).</span>
+              <span className="block">
+                End: no billing or reminders after this day (UTC). Leave blank for ongoing.
+              </span>
+            </p>
             <div className="grid gap-1.5">
               <Label htmlFor="sub-status">Status</Label>
               <select
@@ -873,27 +884,34 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setRenewalDate(event.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="edit-sub-start">Start date (optional)</Label>
-              <Input
-                id="edit-sub-start"
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-              />
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2 xl:col-span-3">
+              <div className="grid min-w-0 gap-1.5">
+                <Label htmlFor="edit-sub-start">Start date (optional)</Label>
+                <Input
+                  id="edit-sub-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5">
+                <Label htmlFor="edit-sub-end">End date (optional)</Label>
+                <Input
+                  id="edit-sub-end"
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="edit-sub-end">End date (optional)</Label>
-              <Input
-                id="edit-sub-end"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-              />
-              <p className="text-muted-foreground text-xs">
-                No billing or reminders after this day (UTC). Leave blank for ongoing.
-              </p>
-            </div>
+            <p className="text-muted-foreground -mt-1 text-xs sm:col-span-2 xl:col-span-3">
+              <span className="block">Start: first day this subscription counts (optional).</span>
+              <span className="block">
+                End: no billing or reminders after this day (UTC). Leave blank for ongoing.
+              </span>
+            </p>
             <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-status">Status</Label>
               <select
@@ -931,7 +949,8 @@ export default function SubscriptionsCardsPage() {
             <Button
               variant="destructive"
               disabled={saving}
-              onClick={() => void deleteSubscription()}
+              type="button"
+              onClick={() => setSubscriptionDeleteOpen(true)}
             >
               Delete
             </Button>
@@ -946,6 +965,46 @@ export default function SubscriptionsCardsPage() {
                 {saving ? "Saving..." : "Save changes"}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={subscriptionDeleteOpen}
+        onOpenChange={(open) => {
+          setSubscriptionDeleteOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete subscription?</DialogTitle>
+            <DialogDescription>
+              This permanently removes{" "}
+              <span className="text-foreground font-medium">
+                {vendor.trim() || "this subscription"}
+              </span>{" "}
+              from Boopy. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSubscriptionDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={saving}
+              onClick={() => {
+                setSubscriptionDeleteOpen(false);
+                void deleteSubscription();
+              }}
+            >
+              {saving ? "Deleting…" : "Delete subscription"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

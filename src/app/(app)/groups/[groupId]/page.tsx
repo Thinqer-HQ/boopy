@@ -463,27 +463,34 @@ export default function GroupDetailPage() {
           onChange={(e) => setRenewalDate(e.target.value)}
         />
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="sub-start">Start date (optional)</Label>
-        <Input
-          id="sub-start"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
+      <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2 xl:col-span-3">
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="sub-start">Start date (optional)</Label>
+          <Input
+            id="sub-start"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full"
+          />
+        </div>
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="sub-end">End date (optional)</Label>
+          <Input
+            id="sub-end"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-full"
+          />
+        </div>
       </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="sub-end">End date (optional)</Label>
-        <Input
-          id="sub-end"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-        <p className="text-muted-foreground text-xs">
-          No billing or reminders after this day (UTC). Leave blank for ongoing.
-        </p>
-      </div>
+      <p className="text-muted-foreground -mt-1 text-xs sm:col-span-2 xl:col-span-3">
+        <span className="block">Start: first day this subscription counts (optional).</span>
+        <span className="block">
+          End: no billing or reminders after this day (UTC). Leave blank for ongoing.
+        </span>
+      </p>
       <div className="grid gap-1.5">
         <Label htmlFor="status">Status</Label>
         <select
@@ -628,8 +635,8 @@ export default function GroupDetailPage() {
                   <TableHead className="hidden sm:table-cell">Cadence</TableHead>
                   <TableHead>Renewal</TableHead>
                   <TableHead className="hidden md:table-cell">Status</TableHead>
-                  <TableHead className="hidden lg:table-cell">Start</TableHead>
-                  <TableHead className="hidden lg:table-cell">End</TableHead>
+                  <TableHead className="hidden tabular-nums lg:table-cell">Start</TableHead>
+                  <TableHead className="hidden tabular-nums lg:table-cell">End</TableHead>
                   <TableHead className="w-12 text-right" />
                 </TableRow>
               </TableHeader>
@@ -644,8 +651,12 @@ export default function GroupDetailPage() {
                     <TableCell className="hidden capitalize sm:table-cell">{sub.cadence}</TableCell>
                     <TableCell>{sub.renewal_date}</TableCell>
                     <TableCell className="hidden md:table-cell">{sub.status}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{sub.start_date ?? "—"}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{sub.end_date ?? "—"}</TableCell>
+                    <TableCell className="hidden tabular-nums lg:table-cell lg:whitespace-nowrap">
+                      {sub.start_date ?? "—"}
+                    </TableCell>
+                    <TableCell className="hidden tabular-nums lg:table-cell lg:whitespace-nowrap">
+                      {sub.end_date ?? "—"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger
