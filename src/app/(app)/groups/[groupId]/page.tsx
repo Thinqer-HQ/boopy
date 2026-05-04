@@ -399,7 +399,7 @@ export default function GroupDetailPage() {
   }
 
   const formDialog = (
-    <div className="grid gap-4 pb-4">
+    <div className="grid gap-4 py-2">
       <div className="grid gap-2">
         <Label htmlFor="vendor">Vendor</Label>
         <Input
@@ -680,15 +680,13 @@ export default function GroupDetailPage() {
       </Card>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="!flex max-h-[min(90dvh,44rem)] !flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-          <div className="min-h-0 min-w-0 flex-1 basis-0 overflow-y-auto overscroll-contain px-4 pt-4">
-            <DialogHeader>
-              <DialogTitle>Add subscription</DialogTitle>
-              <DialogDescription>Track a recurring charge for this group.</DialogDescription>
-            </DialogHeader>
-            {formDialog}
-          </div>
-          <DialogFooter className="mx-0 mb-0 shrink-0">
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add subscription</DialogTitle>
+            <DialogDescription>Track a recurring charge for this group.</DialogDescription>
+          </DialogHeader>
+          {formDialog}
+          <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
@@ -708,14 +706,12 @@ export default function GroupDetailPage() {
       </Dialog>
 
       <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-        <DialogContent className="!flex max-h-[min(90dvh,44rem)] !flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-          <div className="min-h-0 min-w-0 flex-1 basis-0 overflow-y-auto overscroll-contain px-4 pt-4">
-            <DialogHeader>
-              <DialogTitle>Edit subscription</DialogTitle>
-            </DialogHeader>
-            {formDialog}
-          </div>
-          <DialogFooter className="mx-0 mb-0 shrink-0">
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit subscription</DialogTitle>
+          </DialogHeader>
+          {formDialog}
+          <DialogFooter>
             <Button variant="outline" onClick={() => setEditRow(null)}>
               Cancel
             </Button>
