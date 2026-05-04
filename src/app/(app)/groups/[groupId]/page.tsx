@@ -399,8 +399,8 @@ export default function GroupDetailPage() {
   }
 
   const formDialog = (
-    <div className="grid gap-4 py-2">
-      <div className="grid gap-2">
+    <div className="grid gap-3 py-2 sm:grid-cols-2">
+      <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="vendor">Vendor</Label>
         <Input
           id="vendor"
@@ -409,62 +409,58 @@ export default function GroupDetailPage() {
           placeholder="Netflix"
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="amount">Amount</Label>
-          <Input
-            id="amount"
-            type="number"
-            min={0}
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="currency">Currency</Label>
-          <Input
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-            maxLength={8}
-            list="group-subscription-currencies"
-          />
-          <datalist id="group-subscription-currencies">
-            {currencyOptions.map((value) => (
-              <option key={value} value={value} />
-            ))}
-          </datalist>
-        </div>
+      <div className="grid gap-2">
+        <Label htmlFor="amount">Amount</Label>
+        <Input
+          id="amount"
+          type="number"
+          min={0}
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="cadence">Cadence</Label>
-          <select
-            id="cadence"
-            value={cadence}
-            onChange={(e) => setCadence(e.target.value as Cadence)}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-          >
-            <option value="monthly">Monthly</option>
-            <option value="quarterly">Quarterly</option>
-            <option value="yearly">Yearly</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="status">Status</Label>
-          <select
-            id="status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as SubStatus)}
-            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-          >
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
+      <div className="grid gap-2">
+        <Label htmlFor="currency">Currency</Label>
+        <Input
+          id="currency"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+          maxLength={8}
+          list="group-subscription-currencies"
+        />
+        <datalist id="group-subscription-currencies">
+          {currencyOptions.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="cadence">Cadence</Label>
+        <select
+          id="cadence"
+          value={cadence}
+          onChange={(e) => setCadence(e.target.value as Cadence)}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="status">Status</Label>
+        <select
+          id="status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as SubStatus)}
+          className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+        >
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="renewal">Renewal date</Label>
@@ -473,6 +469,15 @@ export default function GroupDetailPage() {
           type="date"
           value={renewalDate}
           onChange={(e) => setRenewalDate(e.target.value)}
+        />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="category">Category (optional)</Label>
+        <Input
+          id="category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="Software"
         />
       </div>
       <div className="grid gap-2">
@@ -496,16 +501,7 @@ export default function GroupDetailPage() {
           No billing or reminders after this day (UTC). Leave blank for ongoing.
         </p>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="category">Category (optional)</Label>
-        <Input
-          id="category"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder="Software"
-        />
-      </div>
-      <div className="grid gap-2">
+      <div className="grid gap-2 sm:col-span-2">
         <Label htmlFor="sub-notes">Notes (optional)</Label>
         <Textarea
           id="sub-notes"
@@ -680,7 +676,7 @@ export default function GroupDetailPage() {
       </Card>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Track a recurring charge for this group.</DialogDescription>
@@ -706,7 +702,7 @@ export default function GroupDetailPage() {
       </Dialog>
 
       <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit subscription</DialogTitle>
           </DialogHeader>

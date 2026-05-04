@@ -639,8 +639,8 @@ export default function SubscriptionsCardsPage() {
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Create a subscription directly from this view.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-2">
+          <div className="grid gap-3 py-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="sub-group">Group</Label>
               <select
                 id="sub-group"
@@ -656,7 +656,7 @@ export default function SubscriptionsCardsPage() {
                 ))}
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="sub-vendor">Vendor</Label>
               <Input
                 id="sub-vendor"
@@ -665,60 +665,56 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Notion"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="sub-amount">Amount</Label>
-                <Input
-                  id="sub-amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="sub-currency">Currency</Label>
-                <Input
-                  id="sub-currency"
-                  value={currency}
-                  maxLength={8}
-                  list="subscription-currencies"
-                  onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                />
-                <datalist id="subscription-currencies">
-                  {currencyOptions.map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-amount">Amount</Label>
+              <Input
+                id="sub-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="sub-cadence">Cadence</Label>
-                <select
-                  id="sub-cadence"
-                  value={cadence}
-                  onChange={(event) =>
-                    setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
-                  }
-                  className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="sub-renewal">Renewal date</Label>
-                <Input
-                  id="sub-renewal"
-                  type="date"
-                  value={renewalDate}
-                  onChange={(event) => setRenewalDate(event.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-currency">Currency</Label>
+              <Input
+                id="sub-currency"
+                value={currency}
+                maxLength={8}
+                list="subscription-currencies"
+                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+              />
+              <datalist id="subscription-currencies">
+                {currencyOptions.map((value) => (
+                  <option key={value} value={value} />
+                ))}
+              </datalist>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-cadence">Cadence</Label>
+              <select
+                id="sub-cadence"
+                value={cadence}
+                onChange={(event) =>
+                  setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
+                }
+                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-renewal">Renewal date</Label>
+              <Input
+                id="sub-renewal"
+                type="date"
+                value={renewalDate}
+                onChange={(event) => setRenewalDate(event.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sub-start">Start date (optional)</Label>
@@ -766,7 +762,7 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Software"
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="sub-notes">Notes</Label>
               <Textarea
                 id="sub-notes"
@@ -798,8 +794,8 @@ export default function SubscriptionsCardsPage() {
               Update this subscription without leaving the Subscriptions tab.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-2">
+          <div className="grid gap-3 py-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="edit-sub-group">Group</Label>
               <select
                 id="edit-sub-group"
@@ -815,7 +811,7 @@ export default function SubscriptionsCardsPage() {
                 ))}
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="edit-sub-vendor">Vendor</Label>
               <Input
                 id="edit-sub-vendor"
@@ -824,55 +820,51 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Notion"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-sub-amount">Amount</Label>
-                <Input
-                  id="edit-sub-amount"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-sub-currency">Currency</Label>
-                <Input
-                  id="edit-sub-currency"
-                  value={currency}
-                  maxLength={8}
-                  list="subscription-currencies"
-                  onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-amount">Amount</Label>
+              <Input
+                id="edit-sub-amount"
+                type="number"
+                min={0}
+                step="0.01"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+              />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-sub-cadence">Cadence</Label>
-                <select
-                  id="edit-sub-cadence"
-                  value={cadence}
-                  onChange={(event) =>
-                    setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
-                  }
-                  className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Yearly</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-sub-renewal">Renewal date</Label>
-                <Input
-                  id="edit-sub-renewal"
-                  type="date"
-                  value={renewalDate}
-                  onChange={(event) => setRenewalDate(event.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-currency">Currency</Label>
+              <Input
+                id="edit-sub-currency"
+                value={currency}
+                maxLength={8}
+                list="subscription-currencies"
+                onChange={(event) => setCurrency(event.target.value.toUpperCase())}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-cadence">Cadence</Label>
+              <select
+                id="edit-sub-cadence"
+                value={cadence}
+                onChange={(event) =>
+                  setCadence(event.target.value as "monthly" | "yearly" | "quarterly" | "custom")
+                }
+                className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+              >
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-sub-renewal">Renewal date</Label>
+              <Input
+                id="edit-sub-renewal"
+                type="date"
+                value={renewalDate}
+                onChange={(event) => setRenewalDate(event.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-sub-start">Start date (optional)</Label>
@@ -917,7 +909,7 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Software"
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="edit-sub-notes">Notes</Label>
               <Textarea
                 id="edit-sub-notes"
