@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Loader2, Sparkles } from "lucide-react";
+import { BellRing, Loader2, Mail, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -35,6 +35,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [signUpSuccessMessage, setSignUpSuccessMessage] = useState<string | null>(null);
   const [pending, setPending] = useState<"sign-in" | "sign-up" | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaMountKey, setCaptchaMountKey] = useState(0);
@@ -47,6 +48,7 @@ export default function LoginPage() {
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSignUpSuccessMessage(null);
     if (hcaptchaSiteKey && !captchaToken) {
       setError("Complete the security check before signing in.");
       return;
@@ -86,6 +88,7 @@ export default function LoginPage() {
 
   async function signUp() {
     setError(null);
+    setSignUpSuccessMessage(null);
     const emailTrim = email.trim();
     if (!emailTrim || !password) {
       setError("Enter an email and password to create an account.");
@@ -118,10 +121,12 @@ export default function LoginPage() {
         },
       });
       if (err) {
+        setSignUpSuccessMessage(null);
         setError(signUpErrorLines(err.message).join("\n"));
         return;
       }
       if (data.session) {
+        setSignUpSuccessMessage(null);
         await fetch("/api/bootstrap", {
           method: "POST",
           headers: { Authorization: `Bearer ${data.session.access_token}` },
@@ -129,7 +134,8 @@ export default function LoginPage() {
         router.replace("/");
         router.refresh();
       } else {
-        setError("Check your email to confirm your account, then sign in.");
+        setError(null);
+        setSignUpSuccessMessage("Check your email to confirm your account, then sign in.");
       }
     } finally {
       setPending(null);
@@ -220,10 +226,22 @@ export default function LoginPage() {
                       onExpire={() => setCaptchaToken(null)}
                       onError={() => {
                         setCaptchaToken(null);
+                        setSignUpSuccessMessage(null);
                         setError("Security check failed to load. Refresh the page and try again.");
                       }}
                     />
                   </div>
+                ) : null}
+
+                {signUpSuccessMessage ? (
+                  <Alert
+                    variant="default"
+                    className="border-emerald-200 bg-emerald-50/90 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-50 [&_[data-slot=alert-description]]:text-emerald-900/90 dark:[&_[data-slot=alert-description]]:text-emerald-100/90"
+                  >
+                    <Mail className="size-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
+                    <AlertTitle>Confirm your email</AlertTitle>
+                    <AlertDescription>{signUpSuccessMessage}</AlertDescription>
+                  </Alert>
                 ) : null}
 
                 {error ? (
