@@ -8,8 +8,6 @@ import { BoopyChatWidget } from "@/components/boopy/boopy-chat-widget";
 import { BoopyRoadmapWidget } from "@/components/boopy/roadmap-widget";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { WorkspaceSettingsDialog } from "@/components/boopy/workspace-settings-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
@@ -18,7 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [missingSupabase] = useState(() => !isSupabaseBrowserConfigured());
   const [ready, setReady] = useState(false);
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [settingsPatchError, setSettingsPatchError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [workspaceSettings, setWorkspaceSettings] = useState<{
@@ -40,7 +38,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     void (async () => {
-      setBootstrapError(null);
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -59,8 +56,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           bootstrapped.current = false;
-          const payload = (await res.json().catch(() => ({}))) as { error?: string };
-          setBootstrapError(payload.error ?? "Failed to prepare workspace.");
+          await supabase.auth.signOut();
+          router.replace("/login");
           return;
         }
       }
@@ -104,6 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!session?.access_token) return;
 
     setSettingsSaving(true);
+    setSettingsPatchError(null);
     const response = await fetch("/api/workspace/settings", {
       method: "PATCH",
       headers: {
@@ -120,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     setSettingsSaving(false);
     if (!response.ok) {
       const payload = (await response.json().catch(() => ({}))) as { error?: string };
-      setBootstrapError(payload.error ?? "Failed to save workspace settings.");
+      setSettingsPatchError(payload.error ?? "Failed to save workspace settings.");
       return;
     }
     const payload = (await response.json()) as {
@@ -137,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       defaultCurrency: payload.workspace.defaultCurrency,
       setupCompletedAt: payload.workspace.setupCompletedAt,
     });
+    setSettingsPatchError(null);
     setSettingsOpen(false);
   }
 
@@ -145,19 +144,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   if (!ready) {
-    if (bootstrapError) {
-      return (
-        <div className="mx-auto w-full max-w-2xl p-8">
-          <Alert variant="destructive">
-            <AlertTitle>Could not initialize workspace</AlertTitle>
-            <AlertDescription>{bootstrapError}</AlertDescription>
-          </Alert>
-          <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
-            Retry
-          </Button>
-        </div>
-      );
-    }
     return (
       <div className="bg-muted/30 flex min-h-svh flex-1 flex-col">
         <div className="bg-background/80 border-b px-4 py-3 backdrop-blur md:px-6">
@@ -216,7 +202,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {workspaceSettings ? (
         <WorkspaceSettingsDialog
           open={settingsOpen}
-          onOpenChange={setSettingsOpen}
+          onOpenChange={(open) => {
+            setSettingsOpen(open);
+            if (!open) setSettingsPatchError(null);
+          }}
           title="Welcome to Boopy - Set your workspace defaults"
           description="Set your workspace name and default currency first. You can change these anytime from the top-right quick settings button."
           initialName={workspaceSettings.name}
@@ -224,6 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           forceOpen={!workspaceSettings.setupCompletedAt}
           saving={settingsSaving}
           saveLabel="Save and continue"
+          serverError={settingsPatchError}
           onSave={saveWorkspaceSettings}
         />
       ) : null}

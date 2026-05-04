@@ -25,6 +25,7 @@ type Props = {
   saving?: boolean;
   forceOpen?: boolean;
   saveLabel?: string;
+  serverError?: string | null;
   onSave: (payload: { name: string; defaultCurrency: string }) => Promise<void>;
 };
 
@@ -38,6 +39,7 @@ export function WorkspaceSettingsDialog({
   saving = false,
   forceOpen = false,
   saveLabel = "Save settings",
+  serverError = null,
   onSave,
 }: Props) {
   const [name, setName] = useState(initialName);
@@ -111,7 +113,9 @@ export function WorkspaceSettingsDialog({
               original currency.
             </p>
           </div>
-          {error ? <p className="text-destructive text-sm">{error}</p> : null}
+          {error || serverError ? (
+            <p className="text-destructive text-sm">{error ?? serverError}</p>
+          ) : null}
         </div>
         <DialogFooter>
           {!forceOpen ? (

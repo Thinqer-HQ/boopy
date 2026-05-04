@@ -69,6 +69,11 @@ function termDateError(startYmd: string, endYmd: string): string | null {
   return null;
 }
 
+const groupSubscriptionDialogClassName =
+  "max-h-[min(93dvh,52rem)] overflow-y-auto overscroll-contain sm:max-w-lg xl:max-w-4xl";
+const groupSubscriptionFormGridClassName =
+  "grid gap-2 py-1 sm:grid-cols-2 sm:py-2 xl:grid-cols-3 xl:gap-x-4 xl:gap-y-2";
+
 export default function GroupDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -399,8 +404,8 @@ export default function GroupDetailPage() {
   }
 
   const formDialog = (
-    <div className="grid gap-3 py-2 sm:grid-cols-2">
-      <div className="grid gap-2 sm:col-span-2">
+    <div className={groupSubscriptionFormGridClassName}>
+      <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
         <Label htmlFor="vendor">Vendor</Label>
         <Input
           id="vendor"
@@ -409,7 +414,7 @@ export default function GroupDetailPage() {
           placeholder="Netflix"
         />
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         <Label htmlFor="amount">Amount</Label>
         <Input
           id="amount"
@@ -420,7 +425,7 @@ export default function GroupDetailPage() {
           onChange={(e) => setAmount(e.target.value)}
         />
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         <Label htmlFor="currency">Currency</Label>
         <Input
           id="currency"
@@ -435,7 +440,7 @@ export default function GroupDetailPage() {
           ))}
         </datalist>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
         <Label htmlFor="cadence">Cadence</Label>
         <select
           id="cadence"
@@ -449,7 +454,37 @@ export default function GroupDetailPage() {
           <option value="custom">Custom</option>
         </select>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1.5">
+        <Label htmlFor="renewal">Renewal date</Label>
+        <Input
+          id="renewal"
+          type="date"
+          value={renewalDate}
+          onChange={(e) => setRenewalDate(e.target.value)}
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="sub-start">Start date (optional)</Label>
+        <Input
+          id="sub-start"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="sub-end">End date (optional)</Label>
+        <Input
+          id="sub-end"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
+        <p className="text-muted-foreground text-xs">
+          No billing or reminders after this day (UTC). Leave blank for ongoing.
+        </p>
+      </div>
+      <div className="grid gap-1.5">
         <Label htmlFor="status">Status</Label>
         <select
           id="status"
@@ -462,16 +497,7 @@ export default function GroupDetailPage() {
           <option value="cancelled">Cancelled</option>
         </select>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="renewal">Renewal date</Label>
-        <Input
-          id="renewal"
-          type="date"
-          value={renewalDate}
-          onChange={(e) => setRenewalDate(e.target.value)}
-        />
-      </div>
-      <div className="grid gap-2">
+      <div className="grid gap-1.5 xl:col-span-2">
         <Label htmlFor="category">Category (optional)</Label>
         <Input
           id="category"
@@ -480,34 +506,14 @@ export default function GroupDetailPage() {
           placeholder="Software"
         />
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="sub-start">Start date (optional)</Label>
-        <Input
-          id="sub-start"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor="sub-end">End date (optional)</Label>
-        <Input
-          id="sub-end"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-        <p className="text-muted-foreground text-xs">
-          No billing or reminders after this day (UTC). Leave blank for ongoing.
-        </p>
-      </div>
-      <div className="grid gap-2 sm:col-span-2">
+      <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
         <Label htmlFor="sub-notes">Notes (optional)</Label>
         <Textarea
           id="sub-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
+          className="max-h-28 min-h-0 resize-y"
         />
       </div>
     </div>
@@ -676,8 +682,8 @@ export default function GroupDetailPage() {
       </Card>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className={groupSubscriptionDialogClassName}>
+          <DialogHeader className="space-y-1">
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Track a recurring charge for this group.</DialogDescription>
           </DialogHeader>
@@ -702,8 +708,8 @@ export default function GroupDetailPage() {
       </Dialog>
 
       <Dialog open={!!editRow} onOpenChange={(o) => !o && setEditRow(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className={groupSubscriptionDialogClassName}>
+          <DialogHeader className="space-y-1">
             <DialogTitle>Edit subscription</DialogTitle>
           </DialogHeader>
           {formDialog}

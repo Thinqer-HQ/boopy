@@ -54,6 +54,12 @@ function cadenceLabel(cadence: SubscriptionRow["cadence"]) {
   return "Custom";
 }
 
+/** Taller/wider on xl + 3-col field rows; scroll remains for small viewports. */
+const subscriptionDialogClassName =
+  "max-h-[min(93dvh,52rem)] overflow-y-auto overscroll-contain sm:max-w-lg xl:max-w-4xl";
+const subscriptionFormGridClassName =
+  "grid gap-2 py-1 sm:grid-cols-2 sm:py-2 xl:grid-cols-3 xl:gap-x-4 xl:gap-y-2";
+
 function termDateError(startYmd: string, endYmd: string): string | null {
   const s = startYmd.trim();
   const e = endYmd.trim();
@@ -634,13 +640,13 @@ export default function SubscriptionsCardsPage() {
       ) : null}
 
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className={subscriptionDialogClassName}>
+          <DialogHeader className="space-y-1">
             <DialogTitle>Add subscription</DialogTitle>
             <DialogDescription>Create a subscription directly from this view.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
+          <div className={subscriptionFormGridClassName}>
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="sub-group">Group</Label>
               <select
                 id="sub-group"
@@ -656,7 +662,7 @@ export default function SubscriptionsCardsPage() {
                 ))}
               </select>
             </div>
-            <div className="grid gap-2 sm:col-span-2">
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="sub-vendor">Vendor</Label>
               <Input
                 id="sub-vendor"
@@ -665,7 +671,7 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Notion"
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-amount">Amount</Label>
               <Input
                 id="sub-amount"
@@ -676,7 +682,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setAmount(event.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-currency">Currency</Label>
               <Input
                 id="sub-currency"
@@ -691,7 +697,7 @@ export default function SubscriptionsCardsPage() {
                 ))}
               </datalist>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-cadence">Cadence</Label>
               <select
                 id="sub-cadence"
@@ -707,7 +713,7 @@ export default function SubscriptionsCardsPage() {
                 <option value="custom">Custom</option>
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-renewal">Renewal date</Label>
               <Input
                 id="sub-renewal"
@@ -716,7 +722,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setRenewalDate(event.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-start">Start date (optional)</Label>
               <Input
                 id="sub-start"
@@ -728,7 +734,7 @@ export default function SubscriptionsCardsPage() {
                 First day this subscription counts (optional).
               </p>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-end">End date (optional)</Label>
               <Input
                 id="sub-end"
@@ -740,7 +746,7 @@ export default function SubscriptionsCardsPage() {
                 No billing or reminders after this day (UTC). Leave blank for ongoing.
               </p>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="sub-status">Status</Label>
               <select
                 id="sub-status"
@@ -753,7 +759,7 @@ export default function SubscriptionsCardsPage() {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5 xl:col-span-2">
               <Label htmlFor="sub-category">Category</Label>
               <Input
                 id="sub-category"
@@ -762,13 +768,14 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Software"
               />
             </div>
-            <div className="grid gap-2 sm:col-span-2">
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="sub-notes">Notes</Label>
               <Textarea
                 id="sub-notes"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 rows={2}
+                className="max-h-28 min-h-0 resize-y"
               />
             </div>
           </div>
@@ -787,15 +794,15 @@ export default function SubscriptionsCardsPage() {
       </Dialog>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className={subscriptionDialogClassName}>
+          <DialogHeader className="space-y-1">
             <DialogTitle>Edit subscription</DialogTitle>
             <DialogDescription>
               Update this subscription without leaving the Subscriptions tab.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
+          <div className={subscriptionFormGridClassName}>
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="edit-sub-group">Group</Label>
               <select
                 id="edit-sub-group"
@@ -811,7 +818,7 @@ export default function SubscriptionsCardsPage() {
                 ))}
               </select>
             </div>
-            <div className="grid gap-2 sm:col-span-2">
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="edit-sub-vendor">Vendor</Label>
               <Input
                 id="edit-sub-vendor"
@@ -820,7 +827,7 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Notion"
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-amount">Amount</Label>
               <Input
                 id="edit-sub-amount"
@@ -831,7 +838,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setAmount(event.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-currency">Currency</Label>
               <Input
                 id="edit-sub-currency"
@@ -841,7 +848,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setCurrency(event.target.value.toUpperCase())}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-cadence">Cadence</Label>
               <select
                 id="edit-sub-cadence"
@@ -857,7 +864,7 @@ export default function SubscriptionsCardsPage() {
                 <option value="custom">Custom</option>
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-renewal">Renewal date</Label>
               <Input
                 id="edit-sub-renewal"
@@ -866,7 +873,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setRenewalDate(event.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-start">Start date (optional)</Label>
               <Input
                 id="edit-sub-start"
@@ -875,7 +882,7 @@ export default function SubscriptionsCardsPage() {
                 onChange={(event) => setStartDate(event.target.value)}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-end">End date (optional)</Label>
               <Input
                 id="edit-sub-end"
@@ -887,7 +894,7 @@ export default function SubscriptionsCardsPage() {
                 No billing or reminders after this day (UTC). Leave blank for ongoing.
               </p>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="edit-sub-status">Status</Label>
               <select
                 id="edit-sub-status"
@@ -900,7 +907,7 @@ export default function SubscriptionsCardsPage() {
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5 xl:col-span-2">
               <Label htmlFor="edit-sub-category">Category</Label>
               <Input
                 id="edit-sub-category"
@@ -909,13 +916,14 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Software"
               />
             </div>
-            <div className="grid gap-2 sm:col-span-2">
+            <div className="grid gap-1.5 sm:col-span-2 xl:col-span-3">
               <Label htmlFor="edit-sub-notes">Notes</Label>
               <Textarea
                 id="edit-sub-notes"
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
                 rows={2}
+                className="max-h-28 min-h-0 resize-y"
               />
             </div>
           </div>
@@ -943,13 +951,13 @@ export default function SubscriptionsCardsPage() {
       </Dialog>
 
       <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain sm:max-w-md">
+        <DialogContent className="max-h-[min(93dvh,52rem)] overflow-y-auto overscroll-contain sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Add group</DialogTitle>
             <DialogDescription>Create a new group without leaving Subscriptions.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-2">
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="group-name-inline">Group name</Label>
               <Input
                 id="group-name-inline"
@@ -958,7 +966,7 @@ export default function SubscriptionsCardsPage() {
                 placeholder="Operations"
               />
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="group-notes-inline">Notes</Label>
               <Textarea
                 id="group-notes-inline"
