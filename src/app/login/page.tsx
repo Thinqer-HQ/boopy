@@ -19,8 +19,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
-import { getPublicAppUrl } from "@/lib/auth-site-url";
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
+import { signUpErrorLines } from "@/lib/supabase/sign-up-error-message";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -85,12 +85,13 @@ export default function LoginPage() {
       email: emailTrim,
       password,
       options: {
-        emailRedirectTo: `${getPublicAppUrl()}/login`,
+        // Use the tab’s origin so Supabase Redirect URLs match (avoids www vs apex vs preview mismatches with NEXT_PUBLIC_APP_URL).
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
     setPending(null);
     if (err) {
-      setError(err.message);
+      setError(signUpErrorLines(err.message).join("\n"));
       return;
     }
     if (data.session) {
@@ -178,7 +179,7 @@ export default function LoginPage() {
                 {error ? (
                   <Alert variant="destructive">
                     <AlertTitle>Something went wrong</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
+                    <AlertDescription className="whitespace-pre-line">{error}</AlertDescription>
                   </Alert>
                 ) : null}
 

@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useActiveWorkspaceId } from "@/contexts/active-workspace-context";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { formatCurrency } from "@/lib/reports/spend";
 import {
@@ -81,6 +82,7 @@ function toUtcDateFromKey(dayKey: string) {
 
 export default function CalendarPage() {
   const { state } = usePrimaryWorkspace();
+  const shellWorkspaceId = useActiveWorkspaceId();
   const searchParams = useSearchParams();
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -102,17 +104,24 @@ export default function CalendarPage() {
   const groupIdFromQuery = searchParams.get("groupId")?.trim() ?? "";
   const groupFilter = manualGroupFilter ?? (groupIdFromQuery || "all");
 
+  const resolvedWorkspaceId =
+    shellWorkspaceId ?? (state.status === "ready" ? state.workspaceId : null);
+
   useEffect(() => {
     async function load() {
-      if (state.status !== "ready") return;
+      if (!resolvedWorkspaceId) return;
       const supabase = getSupabaseBrowser();
-      if (!supabase) return;
+      if (!supabase) {
+        setError("Could not open the database client in this browser tab.");
+        setSubs([]);
+        return;
+      }
       const { data, error: loadError } = await supabase
         .from("subscriptions")
         .select(
           "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, groups!inner(id, name, workspace_id)"
         )
-        .eq("groups.workspace_id", state.workspaceId)
+        .eq("groups.workspace_id", resolvedWorkspaceId)
         .order("renewal_date", { ascending: true });
       if (loadError) {
         setError(loadError.message);
@@ -125,7 +134,7 @@ export default function CalendarPage() {
       const { data: integrations } = await supabase
         .from("calendar_integrations")
         .select("provider")
-        .eq("workspace_id", state.workspaceId)
+        .eq("workspace_id", resolvedWorkspaceId)
         .eq("provider", "google")
         .limit(1);
       setGoogleConnected(Boolean((integrations as IntegrationRow[] | null)?.length));
@@ -133,7 +142,7 @@ export default function CalendarPage() {
     queueMicrotask(() => {
       void load();
     });
-  }, [state]);
+  }, [resolvedWorkspaceId]);
 
   const groups = useMemo(() => {
     const map = new Map<string, string>();
@@ -147,6 +156,14 @@ export default function CalendarPage() {
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [subs]);
+
+  useEffect(() => {
+    if (groupFilter === "all") return;
+    const known = new Set(groups.map((g) => g.id));
+    if (!known.has(groupFilter)) {
+      setManualGroupFilter("all");
+    }
+  }, [groupFilter, groups]);
 
   const visibleSubscriptions = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -274,6 +291,14 @@ export default function CalendarPage() {
     return map;
   }, [visibleSubscriptions, calendarDays]);
 
+  const totalGridEventChips = useMemo(() => {
+    let n = 0;
+    for (const list of eventsByDay.values()) {
+      n += list.length;
+    }
+    return n;
+  }, [eventsByDay]);
+
   const selectedDayEvents = useMemo(
     () => (selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []),
     [eventsByDay, selectedDay]
@@ -320,7 +345,7 @@ export default function CalendarPage() {
   }
 
   async function connectGoogleCalendar() {
-    if (state.status !== "ready") return;
+    if (!resolvedWorkspaceId) return;
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
     const {
@@ -331,7 +356,7 @@ export default function CalendarPage() {
       return;
     }
     const response = await fetch(
-      `/api/integrations/google/start?workspaceId=${state.workspaceId}&redirectTo=${encodeURIComponent("/calendar")}`,
+      `/api/integrations/google/start?workspaceId=${resolvedWorkspaceId}&redirectTo=${encodeURIComponent("/calendar")}`,
       {
         headers: { Authorization: `Bearer ${session.access_token}` },
       }
@@ -345,7 +370,7 @@ export default function CalendarPage() {
   }
 
   async function syncCalendar() {
-    if (state.status !== "ready") return;
+    if (!resolvedWorkspaceId) return;
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
     const {
@@ -369,7 +394,7 @@ export default function CalendarPage() {
         Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        workspaceId: state.workspaceId,
+        workspaceId: resolvedWorkspaceId,
         scope: syncScope,
         month: selectedMonth,
         dates: Array.from(selectedSyncDays),
@@ -386,7 +411,24 @@ export default function CalendarPage() {
 
   if (state.status === "not_configured") return <MissingSupabaseConfig />;
   if (state.status === "schema_not_ready") return <SchemaNotReady details={state.details} />;
-  if (state.status !== "ready") {
+  if (state.status === "error") {
+    return (
+      <div className="flex flex-col gap-4 p-4 md:p-8">
+        <Alert variant="destructive">
+          <AlertTitle>Workspace unavailable</AlertTitle>
+          <AlertDescription>{state.message}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  if (!resolvedWorkspaceId) {
+    if (state.status === "empty") {
+      return (
+        <div className="text-muted-foreground p-8 text-sm">
+          No workspace found for this account. Complete setup from the dashboard first.
+        </div>
+      );
+    }
     return <div className="text-muted-foreground p-8 text-sm">Loading calendar…</div>;
   }
 
@@ -402,7 +444,26 @@ export default function CalendarPage() {
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
-          <CardDescription>Focus on the month, group, or vendor you care about.</CardDescription>
+          <CardDescription>
+            Focus on the month, group, or vendor you care about.
+            <span className="text-muted-foreground mt-1 block text-xs tabular-nums">
+              Loaded {subs.length} subscription{subs.length === 1 ? "" : "s"}
+              {visibleSubscriptions.length < subs.length
+                ? ` · ${visibleSubscriptions.length} match current filters`
+                : null}
+              {subs.length > 0 ? ` · ${totalGridEventChips} renewal chips in grid` : null}
+              {subs.length > 0 && totalGridEventChips === 0 ? (
+                <span className="text-amber-700 dark:text-amber-400">
+                  {" "}
+                  (data loaded but no dates fall in this six-week view — check month or filters)
+                </span>
+              ) : null}
+              <span className="mt-1 block break-all opacity-80">
+                Workspace {resolvedWorkspaceId.slice(-8)} · source{" "}
+                {shellWorkspaceId ? "app shell" : "browser fallback"}
+              </span>
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <Input
@@ -508,7 +569,7 @@ export default function CalendarPage() {
       <Card className="overflow-visible">
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <CardTitle className="leading-tight">Calendar</CardTitle>
                 <button
@@ -580,7 +641,7 @@ export default function CalendarPage() {
             Scroll sideways for full week. Tap a day for details.
           </p>
           <div className="-mx-2 overflow-x-auto overscroll-x-contain px-2 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
-            <div className="w-full min-w-[36rem] sm:min-w-0">
+            <div className="w-full min-w-[36rem]">
               <div className="grid grid-cols-7 gap-1 text-[10px] font-medium sm:gap-2 sm:text-xs">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
                   const short = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][i] ?? day.slice(0, 2);
@@ -614,11 +675,11 @@ export default function CalendarPage() {
                           setSelectedDay(key);
                         }
                       }}
-                      className={`flex min-h-[5.25rem] min-w-0 flex-col overflow-hidden rounded-lg border p-1 text-left transition-colors sm:min-h-28 sm:p-2 ${
+                      className={`flex min-h-[5.25rem] flex-col overflow-visible rounded-lg border p-1 text-left transition-colors sm:min-h-28 sm:p-2 lg:overflow-hidden ${
                         isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/30"
                       } ${isToday ? "ring-primary/40 ring-2" : ""} ${isSelected ? "border-primary bg-primary/5" : ""}`}
                     >
-                      <div className="flex min-w-0 items-center justify-between gap-1">
+                      <div className="flex items-center justify-between gap-1">
                         <p
                           className={`rounded px-1.5 py-0.5 text-xs font-semibold ${isCurrentMonth ? "" : "text-muted-foreground"} ${
                             isSelected ? "bg-primary text-primary-foreground" : ""
@@ -643,7 +704,7 @@ export default function CalendarPage() {
                           />
                         ) : null}
                       </div>
-                      <div className="mt-1 min-h-0 min-w-0 flex-1 space-y-1 overflow-y-auto overscroll-y-contain sm:overflow-y-visible">
+                      <div className="mt-1 flex flex-1 flex-col gap-1 overflow-visible lg:max-h-[7.5rem] lg:overflow-y-auto lg:overscroll-y-contain">
                         {events.slice(0, 3).map((event) => {
                           const group = first(event.groups);
                           return (
@@ -654,7 +715,7 @@ export default function CalendarPage() {
                               <p className="line-clamp-2 text-[10px] leading-tight font-medium break-words sm:line-clamp-none sm:truncate sm:text-xs">
                                 {event.vendor_name}
                               </p>
-                              <div className="mt-0.5 flex min-w-0 items-center justify-between gap-1">
+                              <div className="mt-0.5 flex items-center justify-between gap-1">
                                 <Badge
                                   variant="outline"
                                   className="h-auto max-w-[min(100%,5rem)] shrink truncate px-1 py-0 text-[9px] leading-tight sm:h-4 sm:max-w-none sm:text-[10px]"

@@ -4,7 +4,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Copy `.env.example` to `.env.local` and set at least `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Without them, the app still runs in dev and shows a setup screen instead of crashing.
 
-For **hosted** Supabase: set **Authentication → URL configuration → Site URL** to your production origin (e.g. `https://useboopy.com`), and add **`https://useboopy.com/login`** (and preview URLs if needed) under **Redirect URLs**. Set **`NEXT_PUBLIC_APP_URL`** on Vercel to the same origin so sign-up confirmation emails use the correct link (not `localhost`).
+For **hosted** Supabase: set **Authentication → URL configuration → Site URL** to your production origin (e.g. `https://useboopy.com`), and add **`https://useboopy.com/login`** (and preview URLs if needed) under **Redirect URLs**. The sign-up flow uses **the browser’s current origin** + `/login` for confirmation links so each hostname you use (including `www`, preview deploys, or local ports) must appear in **Redirect URLs**. Set **`NEXT_PUBLIC_APP_URL`** on Vercel for other features that need a stable public origin.
+
+If sign-up shows **error sending confirmation email**: that message comes from **Supabase Auth** (not this app). In the Supabase dashboard, fix **URL configuration** as above, then under **Authentication → Providers → Email** check confirm-email / SMTP settings and **Project Settings → Auth** logs. Local `supabase start` uses **Inbucket** (mail UI) and often has `enable_confirmations = false` in `config.toml`; **hosted** projects default to confirming email and need a working mail setup.
 
 To enable reminder dispatch:
 

@@ -34,6 +34,14 @@ export function usePrimaryWorkspace() {
       return;
     }
     setState({ status: "loading" });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setState({ status: "error", message: "Not signed in." });
+      return;
+    }
+
     const { data, error } = await supabase
       .from("workspaces")
       .select("id")
