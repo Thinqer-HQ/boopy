@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { syncWorkspaceCalendar } from "@/lib/calendar/sync";
 import { getEnv } from "@/lib/env";
 import { log } from "@/lib/log";
+import { sendRenewalDigestEmail } from "@/lib/notifications/email";
 import { dispatchNotification, type NotificationChannel } from "@/lib/notifications/router";
 import { collectDueNotificationPlans } from "@/lib/notifications/scheduler";
 import { supabaseService } from "@/lib/supabase/server";
@@ -99,6 +100,24 @@ type PushSubscriptionRow = {
   subscription_json: PushSubscriptionJSON;
 };
 
+type NotificationContext = {
+  workspaceName: string;
+  groupName: string;
+  vendorName: string;
+  amount: number;
+  currency: string;
+  renewalDate: string;
+  leadTimeDays: number;
+  ownerUserId: string;
+};
+
+type DigestRunRow = {
+  id: string;
+  status: "pending" | "sent" | "failed";
+  attempt_count: number;
+  next_attempt_at: string | null;
+};
+
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
@@ -106,6 +125,43 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 
 function authErrorResponse() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+function buildContextFromPendingJob(job: PendingJobRow): NotificationContext {
+  const subscription = first(job.subscriptions);
+  const group = first(subscription?.groups);
+  const workspace = first(group?.workspaces);
+  if (!subscription || !group || !workspace) {
+    throw new Error("Missing relational data");
+  }
+  return {
+    workspaceName: workspace.name,
+    groupName: group.name,
+    vendorName: subscription.vendor_name,
+    amount: Number(subscription.amount ?? 0),
+    currency: subscription.currency,
+    renewalDate: job.renewal_date,
+    leadTimeDays: job.lead_time_days,
+    ownerUserId: workspace.owner_user_id,
+  };
+}
+
+function floorToUtcHour(date: Date) {
+  const value = new Date(date);
+  value.setUTCMinutes(0, 0, 0);
+  return value;
+}
+
+function nextUtcHour(date: Date) {
+  const value = floorToUtcHour(date);
+  value.setUTCHours(value.getUTCHours() + 1);
+  return value;
+}
+
+function computeNextRetryAt(now: Date, attempts: number) {
+  const baseMinutes = Math.min(60, 5 * 2 ** Math.max(0, attempts - 1));
+  const jitterSeconds = Math.floor(Math.random() * 31);
+  return new Date(now.getTime() + baseMinutes * 60 * 1000 + jitterSeconds * 1000);
 }
 
 function isMissingTableError(message: string | undefined) {
@@ -327,31 +383,233 @@ export async function GET(request: Request) {
   let sent = 0;
   let failed = 0;
   let retried = 0;
-  for (const job of (pendingJobs ?? []) as PendingJobRow[]) {
+  let digestsSent = 0;
+  let digestsFailed = 0;
+  let digestsRetried = 0;
+
+  const pendingJobRows = (pendingJobs ?? []) as PendingJobRow[];
+  const emailJobsByWorkspace = new Map<
+    string,
+    Array<{ job: PendingJobRow; context: NotificationContext }>
+  >();
+  const nonEmailJobs: Array<{ job: PendingJobRow; context: NotificationContext }> = [];
+
+  for (const job of pendingJobRows) {
     try {
-      const subscription = first(job.subscriptions);
-      const group = first(subscription?.groups);
-      const workspace = first(group?.workspaces);
-      if (!subscription || !group || !workspace) {
-        throw new Error("Missing relational data");
+      const context = buildContextFromPendingJob(job);
+      if (job.channel === "email") {
+        const current = emailJobsByWorkspace.get(job.workspace_id) ?? [];
+        current.push({ job, context });
+        emailJobsByWorkspace.set(job.workspace_id, current);
+      } else {
+        nonEmailJobs.push({ job, context });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown send failure";
+      const attempts = (job.attempt_count ?? 0) + 1;
+      if (attempts < 3) {
+        const nextSchedule = computeNextRetryAt(now, attempts).toISOString();
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "pending",
+            scheduled_for: nextSchedule,
+            attempt_count: attempts,
+            error: message,
+          })
+          .eq("id", job.id);
+        retried += 1;
+      } else {
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "failed",
+            attempt_count: attempts,
+            error: message,
+          })
+          .eq("id", job.id);
+        failed += 1;
+      }
+    }
+  }
+
+  for (const [workspaceId, groupedJobs] of emailJobsByWorkspace.entries()) {
+    const windowStart = floorToUtcHour(now);
+    const windowEnd = nextUtcHour(now);
+    const idempotencyKey = `${workspaceId}:email:${windowStart.toISOString()}`;
+    const ownerUserId = groupedJobs[0]?.context.ownerUserId;
+    const workspaceName = groupedJobs[0]?.context.workspaceName ?? "Workspace";
+    if (!ownerUserId) {
+      continue;
+    }
+
+    await supabase.from("notification_digest_runs").upsert(
+      {
+        workspace_id: workspaceId,
+        channel: "email",
+        window_start: windowStart.toISOString(),
+        window_end: windowEnd.toISOString(),
+        idempotency_key: idempotencyKey,
+      },
+      {
+        onConflict: "workspace_id,channel,window_start",
+        ignoreDuplicates: true,
+      }
+    );
+
+    const { data: digestRun, error: digestSelectError } = await supabase
+      .from("notification_digest_runs")
+      .select("id, status, attempt_count, next_attempt_at")
+      .eq("workspace_id", workspaceId)
+      .eq("channel", "email")
+      .eq("window_start", windowStart.toISOString())
+      .single();
+    const digest = (digestRun as DigestRunRow | null) ?? null;
+    if (digestSelectError || !digest) {
+      for (const { job } of groupedJobs) {
+        const attempts = (job.attempt_count ?? 0) + 1;
+        const nextSchedule = computeNextRetryAt(now, attempts).toISOString();
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "pending",
+            scheduled_for: nextSchedule,
+            attempt_count: attempts,
+            error: "Failed to resolve digest run",
+          })
+          .eq("id", job.id);
+        retried += 1;
+      }
+      continue;
+    }
+
+    if (digest.status === "sent") {
+      continue;
+    }
+    if (digest.next_attempt_at && new Date(digest.next_attempt_at) > now) {
+      continue;
+    }
+
+    try {
+      const userResponse = await supabase.auth.admin.getUserById(ownerUserId);
+      const email = userResponse.data?.user?.email;
+      if (!email) throw new Error("Workspace owner has no email");
+
+      const digestItemsByKey = new Map<
+        string,
+        {
+          groupName: string;
+          vendorName: string;
+          amount: number;
+          currency: string;
+          renewalDate: string;
+          leadTimeDays: number;
+        }
+      >();
+      for (const { job, context } of groupedJobs) {
+        const key = `${job.subscription_id}:${job.renewal_date}`;
+        const existing = digestItemsByKey.get(key);
+        if (!existing || context.leadTimeDays < existing.leadTimeDays) {
+          digestItemsByKey.set(key, {
+            groupName: context.groupName,
+            vendorName: context.vendorName,
+            amount: context.amount,
+            currency: context.currency,
+            renewalDate: context.renewalDate,
+            leadTimeDays: context.leadTimeDays,
+          });
+        }
       }
 
-      const context = {
-        workspaceName: workspace.name,
-        groupName: group.name,
-        vendorName: subscription.vendor_name,
-        amount: Number(subscription.amount ?? 0),
-        currency: subscription.currency,
-        renewalDate: job.renewal_date,
-        leadTimeDays: job.lead_time_days,
-      };
+      const providerMessageId = await sendRenewalDigestEmail({
+        to: email,
+        workspaceName,
+        items: [...digestItemsByKey.values()],
+      });
 
-      if (job.channel === "email") {
-        const userResponse = await supabase.auth.admin.getUserById(workspace.owner_user_id);
-        const email = userResponse.data?.user?.email;
-        if (!email) throw new Error("Workspace owner has no email");
-        await dispatchNotification(context, { channel: "email", email });
-      } else if (job.channel === "push") {
+      const digestAttempts = (digest.attempt_count ?? 0) + 1;
+      await supabase
+        .from("notification_digest_runs")
+        .update({
+          status: "sent",
+          attempt_count: digestAttempts,
+          provider_message_id: providerMessageId,
+          last_error: null,
+          last_attempt_at: new Date().toISOString(),
+          next_attempt_at: null,
+          sent_at: new Date().toISOString(),
+        })
+        .eq("id", digest.id);
+      digestsSent += 1;
+
+      for (const { job } of groupedJobs) {
+        await supabase
+          .from("notification_jobs")
+          .update({
+            status: "sent",
+            sent_at: new Date().toISOString(),
+            attempt_count: (job.attempt_count ?? 0) + 1,
+            error: null,
+          })
+          .eq("id", job.id);
+        sent += 1;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown digest send failure";
+      const digestAttempts = (digest.attempt_count ?? 0) + 1;
+      const digestShouldRetry = digestAttempts < 5;
+      const nextDigestAttemptAt = digestShouldRetry
+        ? computeNextRetryAt(now, digestAttempts).toISOString()
+        : null;
+
+      await supabase
+        .from("notification_digest_runs")
+        .update({
+          status: digestShouldRetry ? "pending" : "failed",
+          attempt_count: digestAttempts,
+          last_error: message,
+          last_attempt_at: new Date().toISOString(),
+          next_attempt_at: nextDigestAttemptAt,
+        })
+        .eq("id", digest.id);
+      if (digestShouldRetry) {
+        digestsRetried += 1;
+      } else {
+        digestsFailed += 1;
+      }
+
+      for (const { job } of groupedJobs) {
+        const attempts = (job.attempt_count ?? 0) + 1;
+        if (attempts < 3) {
+          const nextSchedule = computeNextRetryAt(now, attempts).toISOString();
+          await supabase
+            .from("notification_jobs")
+            .update({
+              status: "pending",
+              scheduled_for: nextSchedule,
+              attempt_count: attempts,
+              error: message,
+            })
+            .eq("id", job.id);
+          retried += 1;
+        } else {
+          await supabase
+            .from("notification_jobs")
+            .update({
+              status: "failed",
+              attempt_count: attempts,
+              error: message,
+            })
+            .eq("id", job.id);
+          failed += 1;
+        }
+      }
+    }
+  }
+
+  for (const { job, context } of nonEmailJobs) {
+    try {
+      if (job.channel === "push") {
         await dispatchNotification(context, {
           channel: "push",
           pushSubscriptions: pushByWorkspaceId.get(job.workspace_id) ?? [],
@@ -379,7 +637,7 @@ export async function GET(request: Request) {
       const message = error instanceof Error ? error.message : "Unknown send failure";
       const attempts = (job.attempt_count ?? 0) + 1;
       if (attempts < 3) {
-        const nextSchedule = new Date(now.getTime() + attempts * 5 * 60 * 1000).toISOString();
+        const nextSchedule = computeNextRetryAt(now, attempts).toISOString();
         await supabase
           .from("notification_jobs")
           .update({
@@ -427,6 +685,9 @@ export async function GET(request: Request) {
     runId,
     plansEvaluated: plans.length,
     jobsCreated: jobsToInsert.length,
+    digestsSent,
+    digestsFailed,
+    digestsRetried,
     sent,
     failed,
     retried,
