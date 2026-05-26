@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Building2, CreditCard, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -29,6 +30,14 @@ import {
 } from "@/lib/subscriptions/recurrence";
 
 type GroupCountRow = { id: string; name: string };
+const BOOPY_HI_ASSET_CANDIDATES = [
+  "/boopy-assets/boopy-hi.webp",
+  "/boopy-assets/boopy-hi.png",
+  "/boopy-assets/boopy-hi.gif",
+  "/boopy-assets/boopy-hi.jpg",
+  "/boopy-assets/boopy-hi.jpeg",
+] as const;
+
 type SubscriptionRow = {
   id: string;
   vendor_name: string;
@@ -52,6 +61,7 @@ export default function AppHome() {
   const [groups, setGroups] = useState<GroupCountRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [boopyHiIndex, setBoopyHiIndex] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -182,11 +192,26 @@ export default function AppHome() {
 
   return (
     <div className="flex flex-col gap-8 p-4 md:p-8">
-      <div className="space-y-1">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Live snapshot of groups, subscriptions, and renewal automation.
-        </p>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div className="space-y-1">
+          <h1 className="font-heading text-3xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Live snapshot of groups, subscriptions, and renewal automation.
+          </p>
+        </div>
+        {boopyHiIndex < BOOPY_HI_ASSET_CANDIDATES.length ? (
+          <Image
+            src={BOOPY_HI_ASSET_CANDIDATES[boopyHiIndex]}
+            alt="Boopy"
+            width={112}
+            height={112}
+            className="h-24 w-24 shrink-0 object-contain md:h-28 md:w-28"
+            priority
+            onError={() => {
+              setBoopyHiIndex((current) => current + 1);
+            }}
+          />
+        ) : null}
       </div>
 
       {error ? (

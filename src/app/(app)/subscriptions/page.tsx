@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
-import { SubscriptionScanFill } from "@/components/boopy/subscription-scan-fill";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,11 +143,12 @@ export default function SubscriptionsCardsPage() {
     });
   }, [load]);
 
-  useEffect(() => {
-    if (!editDialogOpen) {
+  function handleEditDialogOpenChange(open: boolean) {
+    setEditDialogOpen(open);
+    if (!open) {
       setSubscriptionDeleteOpen(false);
     }
-  }, [editDialogOpen]);
+  }
 
   const grouped = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -805,7 +805,7 @@ export default function SubscriptionsCardsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog open={editDialogOpen} onOpenChange={handleEditDialogOpenChange}>
         <DialogContent className={subscriptionDialogClassName}>
           <DialogHeader className="space-y-1">
             <DialogTitle>Edit subscription</DialogTitle>
@@ -958,7 +958,7 @@ export default function SubscriptionsCardsPage() {
               Delete subscription…
             </Button>
             <div className="flex min-w-0 flex-1 justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              <Button variant="outline" onClick={() => handleEditDialogOpenChange(false)}>
                 Cancel
               </Button>
               <Button
