@@ -1,4 +1,5 @@
 import { getMarketingContent } from "@/lib/payload";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,17 @@ export default async function MarketingHomePage() {
             </div>
             <div className="panel hero-visual">
               <p className="panel-eyebrow">At a glance</p>
+              <div className="boopy-mascot-wrap">
+                <Image
+                  src="/boopy-mascot.svg"
+                  alt="Boopy mascot waving"
+                  width={220}
+                  height={220}
+                  className="boopy-mascot"
+                  priority
+                />
+                <p className="boopy-mascot-label">Meet Boopy</p>
+              </div>
               <div className="stack stack-tight">
                 {content.features.map((feature) => (
                   <div key={feature.title} className="mini-card mini-card-animated">
