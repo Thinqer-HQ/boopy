@@ -29,7 +29,7 @@
     "typecheck:marketing": "npm run typecheck --workspace @boopy/marketing",
     "db:push": "supabase db push",
     "db:link": "supabase link",
-    "prepare": "husky"
+    "prepare": "node -e \"try{require('husky').default()}catch(e){process.exit(0)}\""
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,md,json,yml,yaml,css}": [

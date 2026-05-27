@@ -1,5 +1,4 @@
 import { getMarketingContent } from "@/lib/payload";
-import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +12,9 @@ const AUDIENCE_TICKER_LABELS = [
 
 export default async function MarketingHomePage() {
   const content = await getMarketingContent();
+  const appUrl = "https://useboopy.com";
+  const upgradeUrl =
+    process.env.NEXT_PUBLIC_PADDLE_CHECKOUT_URL?.trim() || `${appUrl}/settings/billing`;
   const visibleFaqs = content.faqs.filter(
     (faq) => faq.question.trim().toLowerCase() !== "can non-technical teammates edit this page?"
   );
@@ -33,7 +35,7 @@ export default async function MarketingHomePage() {
             <a href="#pricing" className="btn btn-ghost">
               Pricing
             </a>
-            <a href={content.dashboardUrl} className="btn btn-primary">
+            <a href={appUrl} className="btn btn-primary">
               Open app
             </a>
           </nav>
@@ -66,17 +68,6 @@ export default async function MarketingHomePage() {
             </div>
             <div className="panel hero-visual">
               <p className="panel-eyebrow">At a glance</p>
-              <div className="boopy-mascot-wrap">
-                <Image
-                  src="/boopy-mascot.svg"
-                  alt="Boopy mascot waving"
-                  width={220}
-                  height={220}
-                  className="boopy-mascot"
-                  priority
-                />
-                <p className="boopy-mascot-label">Meet Boopy</p>
-              </div>
               <div className="stack stack-tight">
                 {content.features.map((feature) => (
                   <div key={feature.title} className="mini-card mini-card-animated">
@@ -173,7 +164,7 @@ export default async function MarketingHomePage() {
                   <li key={`free-${feature}`}>{feature}</li>
                 ))}
               </ul>
-              <a className="btn btn-ghost" href={content.dashboardUrl}>
+              <a className="btn btn-ghost" href={appUrl}>
                 {content.pricing.free.ctaLabel}
               </a>
             </div>
@@ -186,10 +177,7 @@ export default async function MarketingHomePage() {
                   <li key={`pro-${feature}`}>{feature}</li>
                 ))}
               </ul>
-              <a
-                className="btn btn-primary"
-                href={`${content.dashboardUrl.replace("/login", "")}/settings/billing`}
-              >
+              <a className="btn btn-primary" href={upgradeUrl}>
                 {content.pricing.pro.ctaLabel}
               </a>
             </div>
@@ -239,7 +227,7 @@ export default async function MarketingHomePage() {
           <p>{content.seo.title}</p>
           <p className="muted">{content.seo.description}</p>
           <div className="footer-actions">
-            <a href={content.dashboardUrl} className="btn btn-primary">
+            <a href={appUrl} className="btn btn-primary">
               Open Boopy app
             </a>
           </div>

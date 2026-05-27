@@ -2,6 +2,7 @@
 
 import { BellRing, Loader2, Mail, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -155,6 +156,16 @@ export default function LoginPage() {
             <BellRing className="size-5" />
           </span>
           Boopy
+        </div>
+        <div className="flex flex-1 items-center justify-center py-6">
+          <Image
+            src="/boopy-mascot-transparent.svg"
+            alt="Boopy mascot"
+            width={180}
+            height={180}
+            className="opacity-95"
+            priority
+          />
         </div>
         <div className="space-y-4">
           <blockquote className="space-y-2">
