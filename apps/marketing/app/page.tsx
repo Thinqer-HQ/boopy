@@ -1,4 +1,5 @@
 import { getMarketingContent } from "@/lib/payload";
+import { BoopyMascotMotion } from "@/components/boopy-mascot-motion";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,9 @@ export default async function MarketingHomePage() {
               </div>
             </div>
             <div className="panel hero-visual">
+              <div className="hero-boopy-accent">
+                <BoopyMascotMotion className="hero-boopy-avatar" />
+              </div>
               <p className="panel-eyebrow">At a glance</p>
               <div className="stack stack-tight">
                 {content.features.map((feature) => (

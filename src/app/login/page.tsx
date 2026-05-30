@@ -2,11 +2,11 @@
 
 import { BellRing, Loader2, Mail, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { BoopyMascotMotion } from "@/components/boopy/boopy-mascot-motion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -158,14 +158,7 @@ export default function LoginPage() {
           Boopy
         </div>
         <div className="flex flex-1 items-center justify-center py-6">
-          <Image
-            src="/boopy-mascot-transparent.svg"
-            alt="Boopy mascot"
-            width={180}
-            height={180}
-            className="opacity-95"
-            priority
-          />
+          <BoopyMascotMotion className="relative size-[180px] drop-shadow-[0_16px_28px_rgba(0,0,0,0.08)] transition-transform duration-300 hover:-translate-y-1" />
         </div>
         <div className="space-y-4">
           <blockquote className="space-y-2">
