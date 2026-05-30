@@ -1,10 +1,10 @@
 "use client";
 
 import { ArrowRight, Building2, CreditCard, Users } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { BoopyMascotMotion } from "@/components/boopy/boopy-mascot-motion";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,15 +28,9 @@ import {
   recurrenceOccurrenceDayKeysInUtcRange,
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
+import { getBoopyEmotionState } from "@/lib/boopy/emotion-state";
 
 type GroupCountRow = { id: string; name: string };
-const BOOPY_HI_ASSET_CANDIDATES = [
-  "/boopy-assets/boopy-hi.webp",
-  "/boopy-assets/boopy-hi.png",
-  "/boopy-assets/boopy-hi.gif",
-  "/boopy-assets/boopy-hi.jpg",
-  "/boopy-assets/boopy-hi.jpeg",
-] as const;
 
 type SubscriptionRow = {
   id: string;
@@ -61,7 +55,6 @@ export default function AppHome() {
   const [groups, setGroups] = useState<GroupCountRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [boopyHiIndex, setBoopyHiIndex] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -164,6 +157,55 @@ export default function AppHome() {
       .sort((a, b) => b.monthlyAll - a.monthlyAll);
   }, [subscriptions]);
 
+  const boopyEmotion = useMemo(() => {
+    const now = new Date();
+    const threeDaysAhead = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const activeSubscriptions = subscriptions.filter(
+      (subscription) => subscription.status === "active"
+    );
+    const cancelledSubscriptions = subscriptions.filter(
+      (subscription) => subscription.status === "cancelled"
+    );
+
+    const hasTrialEnding = activeSubscriptions.some((subscription) => {
+      const vendorLooksLikeTrial = subscription.vendor_name.toLowerCase().includes("trial");
+      const renewal = new Date(`${subscription.renewal_date}T00:00:00`);
+      const isSoon = renewal >= now && renewal <= threeDaysAhead;
+      return vendorLooksLikeTrial || (Number(subscription.amount ?? 0) <= 0 && isSoon);
+    });
+
+    const hasMissedRenewal = activeSubscriptions.some((subscription) => {
+      const renewal = new Date(`${subscription.renewal_date}T00:00:00`);
+      return renewal < now;
+    });
+
+    const hasTooManySubscriptions = activeSubscriptions.length >= 12;
+    const savedAmountMonthly = cancelledSubscriptions.reduce(
+      (sum, subscription) =>
+        sum +
+        toMonthlyAmount({
+          amount: subscription.amount,
+          cadence: subscription.cadence,
+          status: subscription.status,
+          termEndDateYmd: subscription.end_date,
+        }),
+      0
+    );
+
+    const everythingOnTrack = !hasTrialEnding && !hasMissedRenewal && upcomingRenewals.length <= 5;
+    const celebrateSuccess = everythingOnTrack && upcomingRenewals.length === 0;
+
+    return getBoopyEmotionState({
+      hasTrialEnding,
+      hasMissedRenewal,
+      hasTooManySubscriptions,
+      inSavingsMode: cancelledSubscriptions.length > 0,
+      savedAmountMonthly,
+      everythingOnTrack,
+      celebrateSuccess,
+    });
+  }, [subscriptions, upcomingRenewals]);
+
   if (state.status === "not_configured") {
     return <MissingSupabaseConfig />;
   }
@@ -199,19 +241,15 @@ export default function AppHome() {
             Live snapshot of groups, subscriptions, and renewal automation.
           </p>
         </div>
-        {boopyHiIndex < BOOPY_HI_ASSET_CANDIDATES.length ? (
-          <Image
-            src={BOOPY_HI_ASSET_CANDIDATES[boopyHiIndex]}
-            alt="Boopy"
-            width={112}
-            height={112}
-            className="h-24 w-24 shrink-0 object-contain md:h-28 md:w-28"
+        <div className="rounded-3xl border border-black/10 bg-white/80 p-2 shadow-[0_12px_24px_rgba(0,0,0,0.08)]">
+          <BoopyMascotMotion
+            className="relative h-24 w-24 shrink-0 md:h-28 md:w-28"
+            emotion={boopyEmotion}
+            variant="standard"
             priority
-            onError={() => {
-              setBoopyHiIndex((current) => current + 1);
-            }}
+            reducedMotionBehavior="fallback-image"
           />
-        ) : null}
+        </div>
       </div>
 
       {error ? (

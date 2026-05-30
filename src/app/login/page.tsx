@@ -158,7 +158,15 @@ export default function LoginPage() {
           Boopy
         </div>
         <div className="flex flex-1 items-center justify-center py-6">
-          <BoopyMascotMotion className="relative size-[180px] drop-shadow-[0_16px_28px_rgba(0,0,0,0.08)] transition-transform duration-300 hover:-translate-y-1" />
+          <div className="relative rounded-3xl border border-black/10 bg-white/70 p-3 shadow-[0_18px_30px_rgba(0,0,0,0.08)]">
+            <BoopyMascotMotion
+              className="relative size-[188px] md:size-[204px]"
+              emotion="boopy-hi"
+              variant="hero"
+              priority
+              reducedMotionBehavior="fallback-image"
+            />
+          </div>
         </div>
         <div className="space-y-4">
           <blockquote className="space-y-2">

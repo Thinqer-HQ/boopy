@@ -68,8 +68,16 @@ export default async function MarketingHomePage() {
               </div>
             </div>
             <div className="panel hero-visual">
-              <div className="hero-boopy-accent">
-                <BoopyMascotMotion className="hero-boopy-avatar" />
+              <div className="hero-boopy-accent panel">
+                <BoopyMascotMotion
+                  className="hero-boopy-avatar"
+                  emotion="boopy-hi"
+                  variant="hero"
+                  priority
+                />
+                <p className="hero-boopy-copy">
+                  <strong>Meet Boopy.</strong> Your subscription sidekick for every renewal moment.
+                </p>
               </div>
               <p className="panel-eyebrow">At a glance</p>
               <div className="stack stack-tight">
@@ -80,7 +88,6 @@ export default async function MarketingHomePage() {
                   </div>
                 ))}
               </div>
-              <div className="visual-orb" />
             </div>
           </div>
         </section>
