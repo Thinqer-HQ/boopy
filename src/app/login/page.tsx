@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { BoopyMascotMotion } from "@/components/boopy/boopy-mascot-motion";
+import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -159,10 +159,9 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center py-6">
           <div className="relative rounded-3xl border border-black/10 bg-white/70 p-3 shadow-[0_18px_30px_rgba(0,0,0,0.08)]">
-            <BoopyMascotMotion
+            <BoopyLottieMascot
               className="relative size-[188px] md:size-[204px]"
               emotion="boopy-hi"
-              variant="hero"
               priority
               reducedMotionBehavior="fallback-image"
             />

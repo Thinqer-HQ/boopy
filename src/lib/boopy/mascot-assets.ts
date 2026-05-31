@@ -3,6 +3,7 @@ import type { BoopyEmotionAsset } from "@/lib/boopy/emotion-state";
 export type BoopyMascotMedia = {
   imageSrc: string;
   imageAlt: string;
+  lottieJsonSrc?: string;
   videoWebmSrc?: string;
   videoMp4Src?: string;
   svgFallbackSrc: string;
@@ -15,31 +16,37 @@ const EMOTION_MEDIA: Record<BoopyEmotionAsset, BoopyMascotMedia> = {
   "boopy-hi": {
     imageSrc: `${BOOPY_ASSET_BASE}/boopy-hi.png`,
     imageAlt: "Boopy waving hello",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/boopy-hi.json`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
   },
   "boopy-sub": {
     imageSrc: `${BOOPY_ASSET_BASE}/boopy-sub.png`,
     imageAlt: "Boopy warning about an upcoming trial ending",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/boopy-sub.json`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
   },
   "boopy-good": {
     imageSrc: `${BOOPY_ASSET_BASE}/boopy-good.png`,
     imageAlt: "Boopy signaling everything is on track",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/boopy-good.json`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
   },
   "good-yes": {
     imageSrc: `${BOOPY_ASSET_BASE}/good-yes.png`,
     imageAlt: "Boopy celebrating subscription savings",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/good-yes.json`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
   },
   "boopy-no": {
     imageSrc: `${BOOPY_ASSET_BASE}/boopy-no.png`,
     imageAlt: "Boopy concerned about risky subscription status",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/boopy-no.json`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
   },
   "boopy-yay": {
     imageSrc: `${BOOPY_ASSET_BASE}/boopy-yay.png`,
     imageAlt: "Boopy celebrating success",
+    lottieJsonSrc: `${BOOPY_ASSET_BASE}/lottie/boopy-yay.json`,
     videoWebmSrc: `${BOOPY_ASSET_BASE}/boopy-yay-anim-1.webm`,
     videoMp4Src: `${BOOPY_ASSET_BASE}/boopy-yay-anim-1.mp4`,
     svgFallbackSrc: DEFAULT_SVG_FALLBACK,
