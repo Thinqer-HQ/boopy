@@ -3,7 +3,7 @@
 import { useChat } from "ai/react";
 import Link from "next/link";
 import { Lock, MessageCircle, Send, Sparkles, X } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -149,6 +149,12 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
   const reactId = useId();
   const chatSessionId = `boopy-chat-${reactId.replace(/:/g, "")}`;
   const billing = useWorkspaceBilling(workspaceId);
+
+  useEffect(() => {
+    const handleOpen = () => setOpen(true);
+    window.addEventListener("boopy:openChat", handleOpen);
+    return () => window.removeEventListener("boopy:openChat", handleOpen);
+  }, []);
 
   const proAssistant = canUseBoopyAssistant(billing.plan);
   const showLoading = Boolean(workspaceId) && billing.loading;

@@ -9,6 +9,7 @@ import {
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -179,11 +180,21 @@ export function AppHeader({ className }: { className?: string }) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <Link
-          href="/"
-          className="font-heading text-foreground min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:text-lg"
-        >
-          Boopy
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <div className="from-primary/70 to-primary flex size-8 shrink-0 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br">
+            <Image
+              src="/boopy-assets/boopy-hi.png"
+              alt=""
+              width={32}
+              height={32}
+              className="-mb-0.5 size-7"
+              draggable={false}
+              priority
+            />
+          </div>
+          <span className="font-heading text-foreground hidden shrink-0 text-lg font-semibold tracking-tight sm:inline">
+            Boopy
+          </span>
         </Link>
         <div className="text-muted-foreground hidden min-w-0 flex-col justify-center text-xs leading-tight sm:flex">
           <span>Subscription reminders</span>
@@ -200,7 +211,8 @@ export function AppHeader({ className }: { className?: string }) {
               href={item.href}
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
-                item.active(pathname) && "bg-muted text-foreground"
+                "font-medium",
+                item.active(pathname) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
               )}
             >
               {item.label}
@@ -211,7 +223,14 @@ export function AppHeader({ className }: { className?: string }) {
 
       <div className="flex items-center gap-2">
         <Link href="/settings/billing" className="hidden md:block">
-          <Badge variant={billing.plan === "pro" ? "secondary" : "outline"}>
+          <Badge
+            variant="secondary"
+            className={
+              billing.plan === "pro"
+                ? "bg-accent text-accent-foreground font-bold tracking-wide"
+                : "text-muted-foreground"
+            }
+          >
             {billing.plan === "pro" ? "PRO" : "FREE"}
           </Badge>
         </Link>
