@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
+
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -101,6 +103,41 @@ export default function NotificationsPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
+
+      {status && (
+        <div
+          className={cn(
+            "overflow-hidden rounded-2xl border",
+            status.jobs.failed === 0
+              ? "to-card border-[#1faa6b]/20 bg-gradient-to-r from-[#e4f6ee]"
+              : "border-destructive/20 from-destructive/5 to-card bg-gradient-to-r"
+          )}
+        >
+          <div className="flex items-center gap-4 p-4">
+            <BoopyLottieMascot
+              className="relative hidden size-14 shrink-0 sm:block"
+              emotion={status.jobs.failed === 0 ? "boopy-good" : "boopy-no"}
+              reducedMotionBehavior="fallback-image"
+            />
+            <div>
+              <p
+                className={cn(
+                  "font-semibold",
+                  status.jobs.failed === 0 ? "text-[#1faa6b]" : "text-destructive"
+                )}
+              >
+                {status.jobs.failed === 0
+                  ? "All channels healthy"
+                  : `${status.jobs.failed} failed job${status.jobs.failed !== 1 ? "s" : ""} detected`}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {status.jobs.sent} reminders sent · {status.jobs.pending} queued ·{" "}
+                {status.jobs.failed} failed in the last 30 days.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>

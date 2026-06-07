@@ -8,13 +8,14 @@ import {
   CreditCard,
   DollarSign,
   FileText,
+  Plus,
   Sparkles,
   Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -29,6 +30,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
+import { getBoopyEmotionState } from "@/lib/boopy/emotion-state";
 import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/lib/reports/spend";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,40 @@ type SubscriptionRow = {
 function first<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
+const GROUP_COLORS = ["#6d5df6", "#1faa6b", "#e8843c", "#3a93ee", "#f1465a", "#8b7cf8"];
+
+function GroupCard({
+  name,
+  buckets,
+  subCount,
+  colorIndex,
+}: {
+  name: string;
+  buckets: Array<{ currency: string; monthly: number }>;
+  subCount: number;
+  colorIndex: number;
+}) {
+  const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length] ?? GROUP_COLORS[0];
+  const top = buckets[0];
+  return (
+    <Link href="/groups">
+      <Card className="overflow-hidden p-0 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md">
+        <div className="h-1.5 w-full" style={{ background: color }} />
+        <div className="p-4">
+          <p className="truncate font-semibold">{name}</p>
+          <div className="font-heading mt-2 text-2xl leading-none font-semibold">
+            {top ? formatCurrency(top.monthly, top.currency) : "—"}
+            <span className="text-muted-foreground text-sm font-normal">/mo</span>
+          </div>
+          <p className="text-muted-foreground mt-1 text-xs">
+            {subCount} subscription{subCount !== 1 ? "s" : ""}
+          </p>
+        </div>
+      </Card>
+    </Link>
+  );
 }
 
 const QUICK_ACTIONS = [
@@ -173,6 +209,16 @@ export default function AppHome() {
       .sort((a, b) => b.monthlyAll - a.monthlyAll);
   }, [subscriptions]);
 
+  const groupSubCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const sub of subscriptions) {
+      if (sub.status !== "active") continue;
+      const name = first(sub.groups)?.name ?? "Unknown";
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    return counts;
+  }, [subscriptions]);
+
   if (state.status === "not_configured") {
     return <MissingSupabaseConfig />;
   }
@@ -203,6 +249,15 @@ export default function AppHome() {
   const primaryMonthly = totalsByCurrency[0]?.monthly ?? 0;
   const primaryYearly = totalsByCurrency[0]?.yearly ?? 0;
   const activeCount = subscriptions.filter((s) => s.status === "active").length;
+  const pausedCount = subscriptions.filter((s) => s.status === "paused").length;
+  const hasMissedRenewal = subscriptions.some(
+    (s) => s.status === "active" && new Date(s.renewal_date) < new Date()
+  );
+  const heroEmotion = getBoopyEmotionState({
+    hasMissedRenewal,
+    inSavingsMode: pausedCount > 0,
+    everythingOnTrack: activeCount > 0 && !hasMissedRenewal,
+  });
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -222,13 +277,10 @@ export default function AppHome() {
       {/* ── Hero banner ── */}
       <div className="from-accent to-card border-accent overflow-hidden rounded-3xl border bg-gradient-to-r">
         <div className="flex items-center gap-4 p-5 sm:gap-6 sm:p-7">
-          <Image
-            src="/boopy-assets/boopy-chill.png"
-            alt=""
-            width={100}
-            height={100}
-            className="hidden shrink-0 select-none sm:block"
-            draggable={false}
+          <BoopyLottieMascot
+            className="relative hidden size-[100px] shrink-0 select-none sm:block"
+            emotion={heroEmotion}
+            reducedMotionBehavior="fallback-image"
             priority
           />
           <div className="min-w-0 flex-1">
@@ -322,6 +374,44 @@ export default function AppHome() {
           </Card>
         </Link>
       </div>
+
+      {/* ── Groups grid ── */}
+      {groupTotals.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-lg font-semibold">Your groups</h2>
+            <Link
+              href="/groups"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "sm" }),
+                "text-primary text-xs"
+              )}
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {groupTotals.slice(0, 5).map((g, i) => (
+              <GroupCard
+                key={g.name}
+                name={g.name}
+                buckets={g.buckets}
+                subCount={groupSubCounts.get(g.name) ?? 0}
+                colorIndex={i}
+              />
+            ))}
+            <Link
+              href="/groups"
+              className="border-border/60 hover:bg-muted/40 flex min-h-[110px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed transition-colors"
+            >
+              <span className="bg-accent text-accent-foreground flex size-9 items-center justify-center rounded-xl">
+                <Plus className="size-4" />
+              </span>
+              <span className="text-muted-foreground text-sm font-medium">New group</span>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── Main grid ── */}
       <div className="grid gap-6 lg:grid-cols-3">
@@ -422,6 +512,34 @@ export default function AppHome() {
           </CardContent>
         </Card>
       </div>
+      {/* ── Savings mode ── */}
+      {pausedCount > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <span className="bg-accent text-accent-foreground flex size-6 items-center justify-center rounded-lg">
+                <Sparkles className="size-3.5" />
+              </span>
+              <CardTitle className="text-base">Savings mode</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {pausedCount} paused subscription{pausedCount !== 1 ? "s" : ""}. Review and cancel
+              anything you no longer need.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full gap-2"
+              onClick={() => window.dispatchEvent(new CustomEvent("boopy:openChat"))}
+            >
+              <Sparkles className="size-3.5" />
+              Review with Boopy
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
