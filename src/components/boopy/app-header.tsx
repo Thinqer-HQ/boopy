@@ -40,11 +40,10 @@ function initials(email: string | undefined) {
 const APP_NAV = [
   { href: "/", label: "Dashboard", active: (p: string) => p === "/" },
   {
-    href: "/groups",
-    label: "Groups",
-    active: (p: string) => p === "/groups" || p.startsWith("/groups/"),
+    href: "/subscriptions",
+    label: "Subscriptions",
+    active: (p: string) => p === "/subscriptions" || p === "/groups" || p.startsWith("/groups/"),
   },
-  { href: "/subscriptions", label: "Subscriptions", active: (p: string) => p === "/subscriptions" },
   { href: "/calendar", label: "Calendar", active: (p: string) => p === "/calendar" },
   { href: "/documents", label: "Documents", active: (p: string) => p === "/documents" },
   { href: "/reports", label: "Reports", active: (p: string) => p === "/reports" },

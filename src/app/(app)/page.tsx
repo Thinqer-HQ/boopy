@@ -40,7 +40,7 @@ import {
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
 
-type GroupCountRow = { id: string; name: string };
+type GroupRow = { id: string; name: string };
 
 type SubscriptionRow = {
   id: string;
@@ -52,7 +52,7 @@ type SubscriptionRow = {
   start_date: string | null;
   end_date: string | null;
   status: "active" | "paused" | "cancelled";
-  groups: { name: string } | Array<{ name: string }> | null;
+  groups: { id: string; name: string } | Array<{ id: string; name: string }> | null;
 };
 
 function first<T>(value: T | T[] | null | undefined): T | null {
@@ -63,11 +63,13 @@ function first<T>(value: T | T[] | null | undefined): T | null {
 const GROUP_COLORS = ["#6d5df6", "#1faa6b", "#e8843c", "#3a93ee", "#f1465a", "#8b7cf8"];
 
 function GroupCard({
+  groupId,
   name,
   buckets,
   subCount,
   colorIndex,
 }: {
+  groupId: string;
   name: string;
   buckets: Array<{ currency: string; monthly: number }>;
   subCount: number;
@@ -76,7 +78,7 @@ function GroupCard({
   const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length] ?? GROUP_COLORS[0];
   const top = buckets[0];
   return (
-    <Link href="/groups">
+    <Link href={`/subscriptions?group=${groupId}`}>
       <Card className="overflow-hidden p-0 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md">
         <div className="h-1.5 w-full" style={{ background: color }} />
         <div className="p-4">
@@ -104,7 +106,7 @@ const QUICK_ACTIONS = [
 
 export default function AppHome() {
   const { state, reload } = usePrimaryWorkspace();
-  const [groups, setGroups] = useState<GroupCountRow[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,7 +123,7 @@ export default function AppHome() {
         supabase
           .from("subscriptions")
           .select(
-            "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, groups!inner(name, workspace_id)"
+            "id, vendor_name, amount, currency, cadence, renewal_date, start_date, end_date, status, groups!inner(id, name, workspace_id)"
           )
           .eq("groups.workspace_id", state.workspaceId)
           .order("renewal_date", { ascending: true }),
@@ -136,7 +138,7 @@ export default function AppHome() {
         return;
       }
 
-      setGroups((groupsResult.data ?? []) as GroupCountRow[]);
+      setGroups((groupsResult.data ?? []) as GroupRow[]);
       setSubscriptions((subscriptionsResult.data ?? []) as SubscriptionRow[]);
     }
 
@@ -177,11 +179,11 @@ export default function AppHome() {
   );
 
   const groupTotals = useMemo(() => {
-    const map = new Map<string, Map<string, number>>();
+    const map = new Map<string, { id: string; totals: Map<string, number> }>();
     for (const subscription of subscriptions) {
       if (subscription.status !== "active") continue;
       const group = first(subscription.groups);
-      const groupName = group?.name ?? "Unknown";
+      if (!group) continue;
       const amount = Number(subscription.amount ?? 0);
       if (!Number.isFinite(amount)) continue;
       const monthlyAmount = toMonthlyAmount({
@@ -191,16 +193,17 @@ export default function AppHome() {
         termEndDateYmd: subscription.end_date,
       });
       const currency = (subscription.currency ?? "USD").toUpperCase();
-      const currentGroup = map.get(groupName) ?? new Map<string, number>();
-      currentGroup.set(currency, (currentGroup.get(currency) ?? 0) + monthlyAmount);
-      map.set(groupName, currentGroup);
+      const entry = map.get(group.name) ?? { id: group.id, totals: new Map<string, number>() };
+      entry.totals.set(currency, (entry.totals.get(currency) ?? 0) + monthlyAmount);
+      map.set(group.name, entry);
     }
     return Array.from(map.entries())
-      .map(([name, totals]) => {
+      .map(([name, { id, totals }]) => {
         const buckets = Array.from(totals.entries())
           .map(([currency, monthly]) => ({ currency, monthly }))
           .sort((a, b) => a.currency.localeCompare(b.currency));
         return {
+          id,
           name,
           buckets,
           monthlyAll: buckets.reduce((sum, bucket) => sum + bucket.monthly, 0),
@@ -390,6 +393,7 @@ export default function AppHome() {
             {groupTotals.slice(0, 5).map((g, i) => (
               <GroupCard
                 key={g.name}
+                groupId={g.id}
                 name={g.name}
                 buckets={g.buckets}
                 subCount={groupSubCounts.get(g.name) ?? 0}

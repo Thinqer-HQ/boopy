@@ -50,6 +50,7 @@ export function BoopyLottieMascot({
           loop: true,
           autoplay: true,
           animationData,
+          assetsPath: "/boopy-assets/",
           rendererSettings: {
             preserveAspectRatio: "xMidYMid meet",
             progressiveLoad: true,
