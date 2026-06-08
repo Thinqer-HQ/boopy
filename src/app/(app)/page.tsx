@@ -250,13 +250,9 @@ export default function AppHome() {
   const primaryYearly = totalsByCurrency[0]?.yearly ?? 0;
   const activeCount = subscriptions.filter((s) => s.status === "active").length;
   const pausedCount = subscriptions.filter((s) => s.status === "paused").length;
-  const hasMissedRenewal = subscriptions.some(
-    (s) => s.status === "active" && new Date(s.renewal_date) < new Date()
-  );
   const heroEmotion = getBoopyEmotionState({
-    hasMissedRenewal,
     inSavingsMode: pausedCount > 0,
-    everythingOnTrack: activeCount > 0 && !hasMissedRenewal,
+    everythingOnTrack: activeCount > 0,
   });
 
   const today = new Date().toLocaleDateString("en-US", {

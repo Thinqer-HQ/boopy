@@ -76,7 +76,7 @@ export function BoopySidePresence() {
             emotion={copy.emotion}
             reducedMotionBehavior="fallback-image"
           />
-          <p className="text-muted-foreground text-center text-[11px] leading-4">Boopy side rail</p>
+          <p className="text-muted-foreground text-center text-[11px] leading-4">{copy.title}</p>
         </div>
       </aside>
 
