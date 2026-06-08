@@ -1,17 +1,15 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Upload } from "lucide-react";
 import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CandidateReview } from "@/components/boopy/documents/candidate-review";
-import { DocumentDropzone } from "@/components/boopy/documents/dropzone";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { getPlanCapabilities } from "@/lib/billing/plan";
@@ -38,11 +36,11 @@ type CandidateRow = {
   status: "pending" | "confirmed" | "rejected";
 };
 
-const STALE_PROCESSING_MS = 3 * 60 * 1000;
+const STALE_MS = 3 * 60 * 1000;
 
-function isStaleInFlight(document: DocumentRow) {
-  if (document.parse_status !== "pending" && document.parse_status !== "processing") return false;
-  return Date.now() - new Date(document.created_at).getTime() > STALE_PROCESSING_MS;
+function isStaleInFlight(doc: DocumentRow) {
+  if (doc.parse_status !== "pending" && doc.parse_status !== "processing") return false;
+  return Date.now() - new Date(doc.created_at).getTime() > STALE_MS;
 }
 
 export default function DocumentsPage() {
@@ -52,19 +50,21 @@ export default function DocumentsPage() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [candidates, setCandidates] = useState<CandidateRow[]>([]);
-  const pendingCandidates = candidates.filter((candidate) => candidate.status === "pending");
+  const pendingCandidates = candidates.filter((c) => c.status === "pending");
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [processingLabel, setProcessingLabel] = useState<string | null>(null);
-  const staleDocuments = documents.filter((document) => isStaleInFlight(document));
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const staleDocuments = documents.filter(isStaleInFlight);
 
   const load = useCallback(async () => {
     if (state.status !== "ready") return;
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
-    const [groupsResult, docsResult, candidatesResult] = await Promise.all([
+    const [groupsRes, docsRes, candidatesRes] = await Promise.all([
       supabase
         .from("groups")
         .select("id, name")
@@ -83,19 +83,18 @@ export default function DocumentsPage() {
         .eq("workspace_id", state.workspaceId)
         .order("created_at", { ascending: false }),
     ]);
-
-    if (groupsResult.error || docsResult.error || candidatesResult.error) {
+    if (groupsRes.error || docsRes.error || candidatesRes.error) {
       setError(
-        groupsResult.error?.message ??
-          docsResult.error?.message ??
-          candidatesResult.error?.message ??
-          "Failed loading documents."
+        groupsRes.error?.message ??
+          docsRes.error?.message ??
+          candidatesRes.error?.message ??
+          "Failed loading."
       );
       return;
     }
-    setGroups((groupsResult.data ?? []) as GroupRow[]);
-    setDocuments((docsResult.data ?? []) as DocumentRow[]);
-    setCandidates((candidatesResult.data ?? []) as CandidateRow[]);
+    setGroups((groupsRes.data ?? []) as GroupRow[]);
+    setDocuments((docsRes.data ?? []) as DocumentRow[]);
+    setCandidates((candidatesRes.data ?? []) as CandidateRow[]);
     setError(null);
   }, [state]);
 
@@ -107,24 +106,19 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     if (state.status !== "ready") return;
-    const hasInFlightDocuments = documents.some(
-      (document) => document.parse_status === "pending" || document.parse_status === "processing"
+    const hasInFlight = documents.some(
+      (d) => d.parse_status === "pending" || d.parse_status === "processing"
     );
-    const refreshMs = hasInFlightDocuments ? 2000 : 8000;
-    const timer = setInterval(() => {
-      void load();
-    }, refreshMs);
-    return () => {
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => void load(), hasInFlight ? 2000 : 8000);
+    return () => clearInterval(timer);
   }, [documents, load, state.status]);
 
   const getAuthHeader = async () => {
     const supabase = getSupabaseBrowser();
     if (!supabase) return null;
     const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token;
-    return accessToken ? { Authorization: `Bearer ${accessToken}` } : null;
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : null;
   };
 
   async function uploadAndParseSingle(
@@ -135,15 +129,10 @@ export default function DocumentsPage() {
     const form = new FormData();
     form.append("workspaceId", state.workspaceId);
     form.append("file", file);
-    const uploadRes = await fetch("/api/documents/upload", {
-      method: "POST",
-      headers,
-      body: form,
-    });
+    const uploadRes = await fetch("/api/documents/upload", { method: "POST", headers, body: form });
     const uploadJson = (await uploadRes.json()) as { error?: string; document?: { id: string } };
-    if (!uploadRes.ok || !uploadJson.document) {
+    if (!uploadRes.ok || !uploadJson.document)
       return { ok: false, error: uploadJson.error ?? "Upload failed." };
-    }
 
     const parseRes = await fetch("/api/documents/parse", {
       method: "POST",
@@ -151,19 +140,16 @@ export default function DocumentsPage() {
       body: JSON.stringify({ workspaceId: state.workspaceId, documentId: uploadJson.document.id }),
     });
     const parseJson = (await parseRes.json()) as { error?: string };
-    if (!parseRes.ok) {
-      return { ok: false, error: parseJson.error ?? "Parse failed." };
-    }
+    if (!parseRes.ok) return { ok: false, error: parseJson.error ?? "Parse failed." };
     return { ok: true };
   }
 
   async function uploadFiles(files: File[]) {
-    if (state.status !== "ready") return;
-    if (files.length === 0) return;
+    if (state.status !== "ready" || files.length === 0) return;
     if (files.length > capabilities.maxDocumentBatchUpload) {
       setError(
         billing.plan === "free"
-          ? "Batch upload is a PRO feature. Free can upload one document at a time."
+          ? "Batch upload is a PRO feature. Free plan: one file at a time."
           : `Batch upload is limited to ${capabilities.maxDocumentBatchUpload} files per run.`
       );
       return;
@@ -172,7 +158,7 @@ export default function DocumentsPage() {
     setError(null);
     setMessage(null);
     setProcessingLabel(
-      files.length > 1 ? `Uploading ${files.length} documents...` : `Uploading ${files[0]?.name}...`
+      files.length > 1 ? `Uploading ${files.length} files…` : `Uploading ${files[0]?.name}…`
     );
     const headers = await getAuthHeader();
     if (!headers) {
@@ -180,29 +166,21 @@ export default function DocumentsPage() {
       setBusy(false);
       return;
     }
-    let successCount = 0;
+    let ok = 0;
     const failures: string[] = [];
-    for (const [index, file] of files.entries()) {
-      setProcessingLabel(`Processing ${index + 1}/${files.length}: ${file.name}`);
-      const result = await uploadAndParseSingle(file, headers);
-      if (result.ok) {
-        successCount += 1;
-      } else {
-        failures.push(`${file.name}: ${result.error ?? "Unknown error"}`);
-      }
+    for (const [i, file] of files.entries()) {
+      setProcessingLabel(`Processing ${i + 1}/${files.length}: ${file.name}`);
+      const res = await uploadAndParseSingle(file, headers);
+      if (res.ok) ok++;
+      else failures.push(`${file.name}: ${res.error ?? "error"}`);
     }
     setBusy(false);
-    setProcessingLabel(successCount > 0 ? "Processing complete." : "Processing failed.");
-    if (failures.length > 0) {
-      setError(failures.slice(0, 2).join(" | "));
-    }
-    if (successCount > 0) {
+    setProcessingLabel(ok > 0 ? "Upload complete." : "Upload failed.");
+    if (failures.length > 0) setError(failures.slice(0, 2).join(" · "));
+    if (ok > 0)
       setMessage(
-        successCount === 1
-          ? "Invoice/receipt processed. Review the extracted candidate below."
-          : `${successCount} documents processed. Review extracted candidates below.`
+        ok === 1 ? "Receipt processed. Review candidate below." : `${ok} files processed.`
       );
-    }
     await load();
   }
 
@@ -210,14 +188,14 @@ export default function DocumentsPage() {
     if (state.status !== "ready") return;
     const headers = await getAuthHeader();
     if (!headers) return;
-    const response = await fetch("/api/documents/parse", {
+    const res = await fetch("/api/documents/parse", {
       method: "PATCH",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId: state.workspaceId, candidateId, action: "reject" }),
     });
-    const json = (await response.json().catch(() => ({}))) as { error?: string };
-    if (!response.ok) {
-      setError(json.error ?? "Could not reject candidate.");
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setError(json.error ?? "Could not reject.");
       return;
     }
     setMessage("Candidate rejected.");
@@ -236,21 +214,17 @@ export default function DocumentsPage() {
     if (state.status !== "ready") return;
     const headers = await getAuthHeader();
     if (!headers) return;
-    const response = await fetch("/api/documents/parse", {
+    const res = await fetch("/api/documents/parse", {
       method: "PATCH",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        workspaceId: state.workspaceId,
-        action: "confirm",
-        ...payload,
-      }),
+      body: JSON.stringify({ workspaceId: state.workspaceId, action: "confirm", ...payload }),
     });
-    const json = (await response.json()) as { error?: string };
-    if (!response.ok) {
-      setError(json.error ?? "Could not confirm candidate.");
+    const json = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setError(json.error ?? "Could not confirm.");
       return;
     }
-    setMessage("Candidate confirmed and subscription created.");
+    setMessage("Subscription created.");
     await load();
   }
 
@@ -258,248 +232,270 @@ export default function DocumentsPage() {
     if (state.status !== "ready") return;
     const headers = await getAuthHeader();
     if (!headers) return;
-    setError(null);
-    setMessage(null);
     setBusy(true);
-    setProcessingLabel("Retrying parse...");
-    const response = await fetch("/api/documents/parse", {
+    setProcessingLabel("Retrying…");
+    const res = await fetch("/api/documents/parse", {
       method: "POST",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({ workspaceId: state.workspaceId, documentId }),
     });
-    const json = (await response.json().catch(() => ({}))) as { error?: string };
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
     setBusy(false);
-    if (!response.ok) {
-      setError(json.error ?? "Retry parse failed.");
-      setProcessingLabel("Processing failed.");
+    if (!res.ok) {
+      setError(json.error ?? "Retry failed.");
       return;
     }
-    setMessage("Parse retried successfully.");
-    setProcessingLabel("Processing complete.");
+    setMessage("Parse retried.");
     await load();
   }
 
-  async function retryStaleDocuments() {
-    if (state.status !== "ready" || staleDocuments.length === 0) return;
+  async function retryStale() {
+    if (state.status !== "ready" || !staleDocuments.length) return;
     const headers = await getAuthHeader();
     if (!headers) {
       setError("Please sign in again.");
       return;
     }
     setBusy(true);
-    setError(null);
-    setMessage(null);
     let retried = 0;
-    for (const [index, document] of staleDocuments.entries()) {
-      setProcessingLabel(
-        `Retrying stale ${index + 1}/${staleDocuments.length}: ${document.original_filename}`
-      );
-      const response = await fetch("/api/documents/parse", {
+    for (const [i, doc] of staleDocuments.entries()) {
+      setProcessingLabel(`Retrying ${i + 1}/${staleDocuments.length}: ${doc.original_filename}`);
+      const res = await fetch("/api/documents/parse", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: state.workspaceId, documentId: document.id }),
+        body: JSON.stringify({ workspaceId: state.workspaceId, documentId: doc.id }),
       });
-      if (response.ok) retried += 1;
+      if (res.ok) retried++;
     }
     setBusy(false);
-    setProcessingLabel("Stale parse retry complete.");
-    setMessage(`Retried ${retried}/${staleDocuments.length} stale document(s).`);
+    setMessage(`Retried ${retried}/${staleDocuments.length} stuck file(s).`);
     await load();
   }
 
-  function renderStatus(document: DocumentRow) {
-    if (document.parse_status === "processing" || document.parse_status === "pending") {
-      return (
-        <span className="inline-flex items-center gap-1 text-amber-600">
-          <Loader2 className="size-4 animate-spin" />
-          Processing
-        </span>
-      );
-    }
-    if (document.parse_status === "parsed") {
-      return (
-        <span className="inline-flex items-center gap-1 text-emerald-600">
-          <CheckCircle2 className="size-4" />
-          Done
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 text-red-600">
-        <AlertTriangle className="size-4" />
-        Failed
-      </span>
-    );
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) void uploadFiles(files);
   }
 
-  if (state.status === "not_configured") {
-    return <MissingSupabaseConfig />;
-  }
-  if (state.status === "schema_not_ready") {
-    return <SchemaNotReady details={state.details} />;
-  }
-  if (state.status !== "ready") {
-    return <div className="text-muted-foreground p-8 text-sm">Loading documents…</div>;
-  }
+  if (state.status === "not_configured") return <MissingSupabaseConfig />;
+  if (state.status === "schema_not_ready") return <SchemaNotReady details={state.details} />;
+  if (state.status !== "ready")
+    return <div className="text-muted-foreground p-8 text-sm">Loading uploads…</div>;
+
+  const processingCount = documents.filter(
+    (d) => d.parse_status === "pending" || d.parse_status === "processing"
+  ).length;
+  const failedCount = documents.filter((d) => d.parse_status === "failed").length;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Documents</h1>
-        <p className="text-muted-foreground text-sm">
-          Drop invoices/receipts, review parser output, and confirm before creating subscriptions.
-        </p>
+    <div className="flex flex-col gap-4 p-4 md:p-6">
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Uploads</h1>
+          <p className="text-muted-foreground text-sm">
+            Receipt and invoice processing queue. Upload receipts when adding subscriptions, or drop
+            files here for bulk processing.
+          </p>
+        </div>
+        <Link
+          href="/subscriptions"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          ← Back to subscriptions
+        </Link>
       </div>
 
-      {error ? (
+      {/* ── Stat strip ── */}
+      <div className="bg-card border-border flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border px-4 py-2.5 text-sm">
+        <span className="flex items-center gap-1.5">
+          <Loader2
+            className={cn("size-3.5", processingCount > 0 && "animate-spin text-amber-500")}
+          />
+          <span className="font-semibold tabular-nums">{processingCount}</span>
+          <span className="text-muted-foreground text-xs">processing</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <AlertTriangle
+            className={cn(
+              "size-3.5",
+              failedCount > 0 ? "text-red-500" : "text-muted-foreground/40"
+            )}
+          />
+          <span className="font-semibold tabular-nums">{failedCount}</span>
+          <span className="text-muted-foreground text-xs">failed</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-amber-400" />
+          <span className="font-semibold tabular-nums">{pendingCandidates.length}</span>
+          <span className="text-muted-foreground text-xs">pending review</span>
+        </span>
+        <span className="ml-auto">
+          <Badge variant={billing.plan === "pro" ? "secondary" : "outline"} className="text-xs">
+            {billing.plan === "pro" ? "PRO — batch enabled" : "FREE — single file"}
+          </Badge>
+        </span>
+      </div>
+
+      {error && (
         <Alert variant="destructive">
-          <AlertTitle>Document workflow error</AlertTitle>
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      ) : null}
-      {message ? (
+      )}
+      {message && (
         <Alert>
-          <AlertTitle>Document processing</AlertTitle>
+          <AlertTitle>Done</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Queued/Processing</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {
-              documents.filter(
-                (document) =>
-                  document.parse_status === "pending" || document.parse_status === "processing"
-              ).length
-            }
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Failed</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">
-            {documents.filter((document) => document.parse_status === "failed").length}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Pending review</CardTitle>
-          </CardHeader>
-          <CardContent className="text-2xl font-semibold">{pendingCandidates.length}</CardContent>
-        </Card>
-      </div>
-
-      {staleDocuments.length > 0 ? (
+      )}
+      {staleDocuments.length > 0 && (
         <Alert>
           <AlertTitle>Stuck processing detected</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-3">
             <span>
-              {staleDocuments.length} document{staleDocuments.length === 1 ? "" : "s"} look stuck in
-              processing. Retry now.
+              {staleDocuments.length} file{staleDocuments.length !== 1 ? "s" : ""} stuck in
+              processing.
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => void retryStaleDocuments()}
-            >
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void retryStale()}>
               <RefreshCw className="size-3.5" />
-              Retry stale
+              Retry stuck
             </Button>
           </AlertDescription>
         </Alert>
-      ) : null}
+      )}
 
-      <DocumentDropzone
-        disabled={busy}
-        statusLabel={processingLabel}
-        allowMultiple={billing.plan === "pro"}
-        onFilesSelected={(files) => void uploadFiles(files)}
-      />
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <Badge variant={billing.plan === "pro" ? "secondary" : "outline"}>
-          {billing.plan === "pro" ? "PRO: Batch upload enabled" : "FREE: Single upload"}
-        </Badge>
-        <span className="text-muted-foreground">
-          {billing.plan === "pro"
-            ? `Upload up to ${capabilities.maxDocumentBatchUpload} files per batch.`
-            : "Upload one file at a time. Upgrade to PRO for batch document processing."}
-        </span>
-        {billing.plan !== "pro" ? (
-          <Link
-            href="/settings/billing"
-            className={cn(buttonVariants({ variant: "link", size: "sm" }), "h-auto px-1")}
-          >
-            Upgrade to PRO
-          </Link>
-        ) : null}
+      {/* ── Drop zone ── */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => !busy && fileInputRef.current?.click()}
+        className={cn(
+          "border-border flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
+          dragging ? "border-primary bg-primary/5" : "hover:bg-muted/30",
+          busy && "cursor-default opacity-60"
+        )}
+      >
+        <Upload className="text-muted-foreground size-7" />
+        <div>
+          <p className="text-sm font-medium">
+            {busy ? (processingLabel ?? "Processing…") : "Drop receipts or invoices here"}
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            {billing.plan === "pro"
+              ? `Up to ${capabilities.maxDocumentBatchUpload} files per batch · PDF, PNG, JPG, WebP`
+              : "One file at a time · PDF, PNG, JPG, WebP · "}
+            {billing.plan !== "pro" && (
+              <Link
+                href="/settings/billing"
+                className="text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Upgrade for batch
+              </Link>
+            )}
+          </p>
+        </div>
+        {busy && <Loader2 className="text-primary size-5 animate-spin" />}
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          multiple={billing.plan === "pro"}
+          accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? []);
+            if (files.length) void uploadFiles(files);
+            e.target.value = "";
+          }}
+        />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent uploads</CardTitle>
-            <CardDescription>Stored invoice and receipt documents.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {documents.map((document) => (
-              <div key={document.id} className="space-y-2 rounded border p-2 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate">{document.original_filename}</span>
-                  <div className="flex items-center gap-2">
-                    {renderStatus(document)}
-                    {document.parse_status === "failed" || isStaleInFlight(document) ? (
-                      <button
-                        className="text-primary inline-flex items-center gap-1 text-xs underline"
-                        onClick={() => void retryParse(document.id)}
-                      >
-                        <RefreshCw className="size-3" />
-                        {isStaleInFlight(document) ? "Retry (stuck)" : "Retry"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                {document.parse_status === "failed" && document.parse_error ? (
-                  <p className="text-xs text-red-600">{document.parse_error}</p>
-                ) : null}
+      {/* ── Document list ── */}
+      {documents.length > 0 && (
+        <div className="bg-card border-border overflow-hidden rounded-xl border">
+          <div className="border-b px-4 py-2.5">
+            <h2 className="text-sm font-semibold">Recent uploads</h2>
+          </div>
+          {documents.map((doc, idx) => {
+            const stale = isStaleInFlight(doc);
+            return (
+              <div
+                key={doc.id}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2 text-sm",
+                  idx < documents.length - 1 && "border-border/40 border-b"
+                )}
+              >
+                <span className="flex-1 truncate text-sm">{doc.original_filename}</span>
+                {doc.parse_status === "processing" || doc.parse_status === "pending" ? (
+                  <span className="flex items-center gap-1 text-xs text-amber-600">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    Processing
+                  </span>
+                ) : doc.parse_status === "parsed" ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600">
+                    <CheckCircle2 className="size-3.5" />
+                    Done
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs text-red-600">
+                    <AlertTriangle className="size-3.5" />
+                    Failed
+                  </span>
+                )}
+                {(doc.parse_status === "failed" || stale) && (
+                  <button
+                    className="text-primary flex items-center gap-1 text-xs hover:underline"
+                    onClick={() => void retryParse(doc.id)}
+                  >
+                    <RefreshCw className="size-3" />
+                    {stale ? "Retry (stuck)" : "Retry"}
+                  </button>
+                )}
+                {doc.parse_status === "failed" && doc.parse_error && (
+                  <span
+                    className="text-muted-foreground max-w-[180px] truncate text-xs"
+                    title={doc.parse_error}
+                  >
+                    {doc.parse_error}
+                  </span>
+                )}
               </div>
-            ))}
-            {documents.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No documents uploaded yet.</p>
-            ) : null}
-          </CardContent>
-        </Card>
+            );
+          })}
+        </div>
+      )}
 
-        <div className="space-y-4">
-          {pendingCandidates.map((candidate) => (
+      {/* ── Pending candidates ── */}
+      {pendingCandidates.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">
+            Review extracted subscriptions ({pendingCandidates.length})
+          </h2>
+          {pendingCandidates.map((c) => (
             <CandidateReview
-              key={candidate.id}
-              candidate={candidate}
+              key={c.id}
+              candidate={c}
               groups={groups}
               onConfirm={confirmCandidate}
               onReject={rejectCandidate}
             />
           ))}
-          {pendingCandidates.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>No pending candidates</CardTitle>
-                <CardDescription>Upload a document to generate a review candidate.</CardDescription>
-              </CardHeader>
-            </Card>
-          ) : null}
-          {pendingCandidates.length > 3 ? (
-            <p className="text-muted-foreground text-xs">
-              Showing all {pendingCandidates.length} pending candidates.
-            </p>
-          ) : null}
         </div>
-      </div>
+      )}
+
+      {documents.length === 0 && pendingCandidates.length === 0 && (
+        <p className="text-muted-foreground py-4 text-center text-sm">
+          No uploads yet. Drop a receipt above, or upload from the Add subscription dialog.
+        </p>
+      )}
     </div>
   );
 }

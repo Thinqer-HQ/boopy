@@ -1,15 +1,14 @@
 "use client";
 
+import { Bell, CheckCircle2, Mail, RefreshCw, Settings, Smartphone, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
-
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
@@ -39,10 +38,10 @@ export default function NotificationsPage() {
       return;
     }
     setLoading(true);
-    const response = await fetch(`/api/notifications/status?workspaceId=${state.workspaceId}`, {
+    const res = await fetch(`/api/notifications/status?workspaceId=${state.workspaceId}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
-    const payload = (await response.json().catch(() => ({}))) as {
+    const payload = (await res.json().catch(() => ({}))) as {
       error?: string;
       prefs?: NotificationStatus["prefs"];
       jobs?: NotificationStatus["jobs"];
@@ -50,7 +49,7 @@ export default function NotificationsPage() {
       pushSubscriptions?: number;
     };
     setLoading(false);
-    if (!response.ok) {
+    if (!res.ok) {
       setError(payload.error ?? "Failed to load notification status.");
       return;
     }
@@ -71,127 +70,174 @@ export default function NotificationsPage() {
 
   if (state.status === "not_configured") return <MissingSupabaseConfig />;
   if (state.status === "schema_not_ready") return <SchemaNotReady details={state.details} />;
-  if (state.status !== "ready") {
+  if (state.status !== "ready")
     return <div className="text-muted-foreground p-8 text-sm">Loading notifications…</div>;
-  }
+
+  const healthy = !status || status.jobs.failed === 0;
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Notifications</h1>
           <p className="text-muted-foreground text-sm">
-            Health and delivery status for reminders across channels.
+            Reminder delivery health across all channels.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={loading} onClick={() => void loadStatus()}>
-            {loading ? "Refreshing..." : "Refresh status"}
+          <Button variant="outline" size="sm" disabled={loading} onClick={() => void loadStatus()}>
+            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            {loading ? "Refreshing…" : "Refresh"}
           </Button>
           <Link
             href="/settings/notifications"
-            className={cn(buttonVariants({ variant: "default" }), "inline-flex")}
+            className={cn(buttonVariants({ variant: "default", size: "sm" }))}
           >
-            Open advanced settings
+            <Settings className="size-3.5" />
+            Settings
           </Link>
         </div>
       </div>
 
-      {error ? (
+      {error && (
         <Alert variant="destructive">
-          <AlertTitle>Notification status error</AlertTitle>
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-      ) : null}
+      )}
 
+      {/* ── Health banner ── */}
       {status && (
         <div
           className={cn(
-            "overflow-hidden rounded-2xl border",
-            status.jobs.failed === 0
+            "overflow-hidden rounded-xl border",
+            healthy
               ? "to-card border-[#1faa6b]/20 bg-gradient-to-r from-[#e4f6ee]"
               : "border-destructive/20 from-destructive/5 to-card bg-gradient-to-r"
           )}
         >
-          <div className="flex items-center gap-4 p-4">
+          <div className="flex items-center gap-4 px-4 py-3">
             <BoopyLottieMascot
-              className="relative hidden size-14 shrink-0 sm:block"
-              emotion={status.jobs.failed === 0 ? "boopy-good" : "boopy-no"}
+              className="relative hidden size-12 shrink-0 sm:block"
+              emotion={healthy ? "boopy-good" : "boopy-no"}
               reducedMotionBehavior="fallback-image"
             />
             <div>
-              <p
-                className={cn(
-                  "font-semibold",
-                  status.jobs.failed === 0 ? "text-[#1faa6b]" : "text-destructive"
-                )}
-              >
-                {status.jobs.failed === 0
+              <p className={cn("font-semibold", healthy ? "text-[#1faa6b]" : "text-destructive")}>
+                {healthy
                   ? "All channels healthy"
-                  : `${status.jobs.failed} failed job${status.jobs.failed !== 1 ? "s" : ""} detected`}
+                  : `${status.jobs.failed} failed job${status.jobs.failed !== 1 ? "s" : ""}`}
               </p>
               <p className="text-muted-foreground text-sm">
-                {status.jobs.sent} reminders sent · {status.jobs.pending} queued ·{" "}
-                {status.jobs.failed} failed in the last 30 days.
+                {status.jobs.sent} sent · {status.jobs.pending} queued · {status.jobs.failed} failed
+                in the last 30 days
               </p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Pending jobs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-2xl">{status?.jobs.pending ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Failed jobs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-2xl">{status?.jobs.failed ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Enabled destinations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-2xl">
-              {status?.destinations.enabled ?? 0}/{status?.destinations.total ?? 0}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Push subscriptions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-heading text-2xl">{status?.pushSubscriptions ?? 0}</p>
-          </CardContent>
-        </Card>
+      {/* ── Stat strip ── */}
+      <div className="bg-card border-border flex flex-wrap items-center gap-x-6 gap-y-1 rounded-xl border px-4 py-2.5">
+        {(
+          [
+            { label: "Pending", value: status?.jobs.pending ?? 0, warn: false },
+            {
+              label: "Failed",
+              value: status?.jobs.failed ?? 0,
+              warn: (status?.jobs.failed ?? 0) > 0,
+            },
+            { label: "Sent (30d)", value: status?.jobs.sent ?? 0, warn: false },
+            { label: "Total jobs", value: status?.jobs.total ?? 0, warn: false },
+          ] as const
+        ).map(({ label, value, warn }) => (
+          <div key={label} className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground text-xs">{label}</span>
+            <span
+              className={cn(
+                "font-heading text-xl leading-none font-semibold tabular-nums",
+                warn && "text-destructive"
+              )}
+            >
+              {value}
+            </span>
+          </div>
+        ))}
+        <div className="ml-auto flex flex-col gap-0.5">
+          <span className="text-muted-foreground text-xs">Destinations</span>
+          <span className="font-heading text-xl leading-none font-semibold tabular-nums">
+            {status?.destinations.enabled ?? 0}
+            <span className="text-muted-foreground text-sm font-normal">
+              /{status?.destinations.total ?? 0}
+            </span>
+          </span>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Channel readiness</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 text-sm">
-          <p>Email reminders: {status?.prefs?.email_enabled ? "Enabled" : "Disabled"}</p>
-          <p>Push reminders: {status?.prefs?.push_enabled ? "Enabled" : "Disabled"}</p>
-          <p>
-            Lead times:{" "}
-            {status?.prefs?.lead_times_days?.length
-              ? status.prefs.lead_times_days.join(", ")
-              : "Not configured"}
-          </p>
-          <p>Total jobs recorded: {status?.jobs.total ?? 0}</p>
-        </CardContent>
-      </Card>
+      {/* ── Channel readiness ── */}
+      <div className="bg-card border-border overflow-hidden rounded-xl border">
+        <div className="border-b px-4 py-2.5">
+          <h2 className="text-sm font-semibold">Channel readiness</h2>
+        </div>
+        {[
+          {
+            icon: <Mail className="size-4" />,
+            label: "Email reminders",
+            value: status?.prefs?.email_enabled,
+          },
+          {
+            icon: <Smartphone className="size-4" />,
+            label: "Push reminders",
+            value: status?.prefs?.push_enabled,
+            sub: status?.pushSubscriptions
+              ? `${status.pushSubscriptions} device${status.pushSubscriptions !== 1 ? "s" : ""} registered`
+              : undefined,
+          },
+          {
+            icon: <Bell className="size-4" />,
+            label: "Lead times",
+            custom: status?.prefs?.lead_times_days?.length
+              ? status.prefs.lead_times_days.map((d) => `${d}d`).join(", ")
+              : "Not configured",
+          },
+        ].map(({ icon, label, value, sub, custom }, i, arr) => (
+          <div
+            key={label}
+            className={cn(
+              "flex items-center gap-3 px-4 py-2.5",
+              i < arr.length - 1 && "border-border/40 border-b"
+            )}
+          >
+            <span className="text-muted-foreground shrink-0">{icon}</span>
+            <span className="flex-1 text-sm font-medium">{label}</span>
+            {custom !== undefined ? (
+              <span className="text-muted-foreground text-sm tabular-nums">{custom}</span>
+            ) : value === undefined ? (
+              <span className="text-muted-foreground text-xs">—</span>
+            ) : value ? (
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
+                <CheckCircle2 className="size-3.5" />
+                {sub ?? "Enabled"}
+              </span>
+            ) : (
+              <span className="text-muted-foreground flex items-center gap-1 text-xs">
+                <XCircle className="size-3.5" />
+                Disabled
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {!status && !loading && (
+        <p className="text-muted-foreground py-4 text-center text-sm">
+          No status loaded.{" "}
+          <button className="text-primary hover:underline" onClick={() => void loadStatus()}>
+            Refresh
+          </button>
+        </p>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Link as LinkIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Link as LinkIcon, RefreshCw } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -9,7 +9,6 @@ import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +27,7 @@ import {
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
+import { cn } from "@/lib/utils";
 
 type SubscriptionRow = {
   id: string;
@@ -42,9 +42,7 @@ type SubscriptionRow = {
   groups: { id: string; name: string } | Array<{ id: string; name: string }> | null;
 };
 
-type IntegrationRow = {
-  provider: string;
-};
+type IntegrationRow = { provider: string };
 
 type MonthChargeLine = {
   subscriptionId: string;
@@ -148,9 +146,7 @@ export default function CalendarPage() {
     const map = new Map<string, string>();
     for (const subscription of subs) {
       const group = first(subscription.groups);
-      if (group?.id && group.name) {
-        map.set(group.id, group.name);
-      }
+      if (group?.id && group.name) map.set(group.id, group.name);
     }
     return Array.from(map.entries())
       .map(([id, name]) => ({ id, name }))
@@ -160,19 +156,16 @@ export default function CalendarPage() {
   useEffect(() => {
     if (groupFilter === "all") return;
     const known = new Set(groups.map((g) => g.id));
-    if (!known.has(groupFilter)) {
-      setManualGroupFilter("all");
-    }
+    if (!known.has(groupFilter)) setManualGroupFilter("all");
   }, [groupFilter, groups]);
 
   const visibleSubscriptions = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return subs.filter((subscription) => {
-      const group = first(subscription.groups);
+    const q = search.trim().toLowerCase();
+    return subs.filter((s) => {
+      const group = first(s.groups);
       if (groupFilter !== "all" && group?.id !== groupFilter) return false;
-      if (!normalizedSearch) return true;
-      const haystack = `${subscription.vendor_name} ${group?.name ?? ""}`.toLowerCase();
-      return haystack.includes(normalizedSearch);
+      if (!q) return true;
+      return `${s.vendor_name} ${group?.name ?? ""}`.toLowerCase().includes(q);
     });
   }, [subs, groupFilter, search]);
 
@@ -187,83 +180,80 @@ export default function CalendarPage() {
     return start;
   }, [firstDayOfMonth]);
 
-  const calendarDays = useMemo(() => {
-    return Array.from({ length: 42 }).map((_, index) => {
-      const date = new Date(gridStart);
-      date.setUTCDate(gridStart.getUTCDate() + index);
-      return date;
-    });
-  }, [gridStart]);
+  const calendarDays = useMemo(
+    () =>
+      Array.from({ length: 42 }).map((_, i) => {
+        const d = new Date(gridStart);
+        d.setUTCDate(gridStart.getUTCDate() + i);
+        return d;
+      }),
+    [gridStart]
+  );
 
   const monthRangeUtc = useMemo(() => {
     const start = new Date(`${selectedMonth}-01T00:00:00.000Z`);
     const y = start.getUTCFullYear();
     const m = start.getUTCMonth();
-    const end = new Date(Date.UTC(y, m + 1, 0));
-    return { start, end };
+    return { start, end: new Date(Date.UTC(y, m + 1, 0)) };
   }, [selectedMonth]);
 
   const monthChargeRollup = useMemo(() => {
     const { start, end } = monthRangeUtc;
     const lines: MonthChargeLine[] = [];
-    for (const subscription of visibleSubscriptions) {
-      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
+    for (const s of visibleSubscriptions) {
+      const bounds = recurrenceBoundsFromNullable(s.start_date, s.end_date);
       const dayKeys = recurrenceOccurrenceDayKeysInUtcRange(
-        subscription.renewal_date,
-        subscription.cadence,
+        s.renewal_date,
+        s.cadence,
         start,
         end,
         bounds
       );
-      const occurrences = dayKeys.length;
-      if (occurrences === 0) continue;
-      const amountEach = Number(subscription.amount ?? 0);
+      if (!dayKeys.length) continue;
+      const amountEach = Number(s.amount ?? 0);
       if (!Number.isFinite(amountEach)) continue;
-      const currency = (subscription.currency ?? "USD").toUpperCase();
-      const group = first(subscription.groups);
+      const currency = (s.currency ?? "USD").toUpperCase();
+      const group = first(s.groups);
       lines.push({
-        subscriptionId: subscription.id,
-        vendor: subscription.vendor_name,
+        subscriptionId: s.id,
+        vendor: s.vendor_name,
         currency,
         amountEach,
-        occurrences,
-        lineTotal: amountEach * occurrences,
-        cadence: subscription.cadence,
-        status: subscription.status,
+        occurrences: dayKeys.length,
+        lineTotal: amountEach * dayKeys.length,
+        cadence: s.cadence,
+        status: s.status,
         groupId: group?.id ?? "unknown",
         groupName: group?.name ?? "Unknown",
       });
     }
-
     const totalsMap = new Map<string, number>();
-    for (const line of lines) {
-      totalsMap.set(line.currency, (totalsMap.get(line.currency) ?? 0) + line.lineTotal);
-    }
+    for (const l of lines)
+      totalsMap.set(l.currency, (totalsMap.get(l.currency) ?? 0) + l.lineTotal);
     const totalsByCurrency = Array.from(totalsMap.entries())
       .map(([currency, total]) => ({ currency, total }))
       .sort((a, b) => a.currency.localeCompare(b.currency));
 
     const groupMap = new Map<string, { name: string; lines: MonthChargeLine[] }>();
-    for (const line of lines) {
-      const bucket = groupMap.get(line.groupId);
-      if (bucket) {
-        bucket.lines.push(line);
-      } else {
-        groupMap.set(line.groupId, { name: line.groupName, lines: [line] });
-      }
+    for (const l of lines) {
+      const b = groupMap.get(l.groupId);
+      if (b) b.lines.push(l);
+      else groupMap.set(l.groupId, { name: l.groupName, lines: [l] });
     }
     const byGroup = Array.from(groupMap.entries())
       .sort((a, b) => a[1].name.localeCompare(b[1].name))
       .map(([groupId, bucket]) => {
         const subMap = new Map<string, number>();
-        for (const l of bucket.lines) {
+        for (const l of bucket.lines)
           subMap.set(l.currency, (subMap.get(l.currency) ?? 0) + l.lineTotal);
-        }
-        const subtotalsByCurrency = Array.from(subMap.entries())
-          .map(([currency, total]) => ({ currency, total }))
-          .sort((a, b) => a.currency.localeCompare(b.currency));
-        const sortedLines = [...bucket.lines].sort((a, b) => a.vendor.localeCompare(b.vendor));
-        return { groupId, name: bucket.name, lines: sortedLines, subtotalsByCurrency };
+        return {
+          groupId,
+          name: bucket.name,
+          lines: [...bucket.lines].sort((a, b) => a.vendor.localeCompare(b.vendor)),
+          subtotalsByCurrency: Array.from(subMap.entries())
+            .map(([currency, total]) => ({ currency, total }))
+            .sort((a, b) => a.currency.localeCompare(b.currency)),
+        };
       });
 
     return { lines, totalsByCurrency, byGroup };
@@ -271,33 +261,25 @@ export default function CalendarPage() {
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, SubscriptionRow[]>();
-    if (calendarDays.length === 0) return map;
+    if (!calendarDays.length) return map;
     const rangeStart = calendarDays[0]!;
     const rangeEnd = calendarDays[calendarDays.length - 1]!;
-    for (const subscription of visibleSubscriptions) {
-      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
+    for (const s of visibleSubscriptions) {
+      const bounds = recurrenceBoundsFromNullable(s.start_date, s.end_date);
       const dayKeys = recurrenceOccurrenceDayKeysInUtcRange(
-        subscription.renewal_date,
-        subscription.cadence,
+        s.renewal_date,
+        s.cadence,
         rangeStart,
         rangeEnd,
         bounds
       );
       for (const key of dayKeys) {
         if (!map.has(key)) map.set(key, []);
-        map.get(key)!.push(subscription);
+        map.get(key)!.push(s);
       }
     }
     return map;
   }, [visibleSubscriptions, calendarDays]);
-
-  const totalGridEventChips = useMemo(() => {
-    let n = 0;
-    for (const list of eventsByDay.values()) {
-      n += list.length;
-    }
-    return n;
-  }, [eventsByDay]);
 
   const selectedDayEvents = useMemo(
     () => (selectedDay ? (eventsByDay.get(selectedDay) ?? []) : []),
@@ -306,11 +288,11 @@ export default function CalendarPage() {
   const todayKey = formatDay(new Date());
   const selectedDayTotals = useMemo(() => {
     const map = new Map<string, number>();
-    for (const event of selectedDayEvents) {
-      const currency = (event.currency ?? "USD").toUpperCase();
-      const amount = Number(event.amount ?? 0);
-      if (!Number.isFinite(amount)) continue;
-      map.set(currency, (map.get(currency) ?? 0) + amount);
+    for (const e of selectedDayEvents) {
+      const cur = (e.currency ?? "USD").toUpperCase();
+      const amt = Number(e.amount ?? 0);
+      if (!Number.isFinite(amt)) continue;
+      map.set(cur, (map.get(cur) ?? 0) + amt);
     }
     return Array.from(map.entries())
       .map(([currency, total]) => ({ currency, total }))
@@ -318,28 +300,18 @@ export default function CalendarPage() {
   }, [selectedDayEvents]);
 
   const yearOptions = useMemo(() => {
-    const baseYear = new Date().getUTCFullYear();
-    return Array.from({ length: 15 }).map((_, index) => baseYear - 7 + index);
+    const base = new Date().getUTCFullYear();
+    return Array.from({ length: 15 }).map((_, i) => base - 7 + i);
   }, []);
 
   function shiftMonth(delta: number) {
-    setMonthCursor(
-      (current) => new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + delta, 1))
-    );
-  }
-
-  function updateYear(year: number) {
-    setMonthCursor((current) => new Date(Date.UTC(year, current.getUTCMonth(), 1)));
+    setMonthCursor((c) => new Date(Date.UTC(c.getUTCFullYear(), c.getUTCMonth() + delta, 1)));
   }
 
   function toggleSyncDay(day: string) {
-    setSelectedSyncDays((current) => {
-      const next = new Set(current);
-      if (next.has(day)) {
-        next.delete(day);
-      } else {
-        next.add(day);
-      }
+    setSelectedSyncDays((c) => {
+      const next = new Set(c);
+      next.has(day) ? next.delete(day) : next.add(day);
       return next;
     });
   }
@@ -355,14 +327,12 @@ export default function CalendarPage() {
       setError("You are not signed in.");
       return;
     }
-    const response = await fetch(
+    const res = await fetch(
       `/api/integrations/google/start?workspaceId=${resolvedWorkspaceId}&redirectTo=${encodeURIComponent("/calendar")}`,
-      {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }
+      { headers: { Authorization: `Bearer ${session.access_token}` } }
     );
-    const payload = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
-    if (!response.ok || !payload.url) {
+    const payload = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+    if (!res.ok || !payload.url) {
       setError(payload.error ?? "Could not start Google Calendar connection.");
       return;
     }
@@ -387,7 +357,7 @@ export default function CalendarPage() {
     setError(null);
     setSyncing(true);
     setSyncMessage(null);
-    const response = await fetch("/api/integrations/google/resync", {
+    const res = await fetch("/api/integrations/google/resync", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -400,263 +370,216 @@ export default function CalendarPage() {
         dates: Array.from(selectedSyncDays),
       }),
     });
-    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    const payload = (await res.json().catch(() => ({}))) as { error?: string };
     setSyncing(false);
-    if (!response.ok) {
+    if (!res.ok) {
       setError(payload.error ?? "Calendar sync failed.");
       return;
     }
-    setSyncMessage("Google Calendar sync completed.");
+    setSyncMessage("Synced to Google Calendar.");
   }
 
   if (state.status === "not_configured") return <MissingSupabaseConfig />;
   if (state.status === "schema_not_ready") return <SchemaNotReady details={state.details} />;
-  if (state.status === "error") {
+  if (state.status === "error")
     return (
-      <div className="flex flex-col gap-4 p-4 md:p-8">
+      <div className="flex flex-col gap-4 p-4 md:p-6">
         <Alert variant="destructive">
           <AlertTitle>Workspace unavailable</AlertTitle>
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       </div>
     );
-  }
-  if (!resolvedWorkspaceId) {
-    if (state.status === "empty") {
-      return (
-        <div className="text-muted-foreground p-8 text-sm">
-          No workspace found for this account. Complete setup from the dashboard first.
-        </div>
-      );
-    }
-    return <div className="text-muted-foreground p-8 text-sm">Loading calendar…</div>;
-  }
+  if (!resolvedWorkspaceId)
+    return (
+      <div className="text-muted-foreground p-8 text-sm">
+        {state.status === "empty"
+          ? "No workspace found. Complete setup from the dashboard first."
+          : "Loading calendar…"}
+      </div>
+    );
 
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-8">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">Renewal calendar</h1>
-        <p className="text-muted-foreground text-sm">
-          Filter and search renewals across all groups in a calendar layout.
-        </p>
+    <div className="flex flex-col gap-4 p-4 md:p-6">
+      {/* ── Header ── */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight">Calendar</h1>
+          <p className="text-muted-foreground text-sm">
+            {visibleSubscriptions.length} subscription
+            {visibleSubscriptions.length !== 1 ? "s" : ""} · {monthLabel(monthCursor)}
+          </p>
+        </div>
+        {/* Google Calendar */}
+        <div className="flex flex-wrap items-center gap-2">
+          {!googleConnected ? (
+            <Button variant="outline" size="sm" onClick={() => void connectGoogleCalendar()}>
+              <LinkIcon className="size-3.5" />
+              Connect Google Calendar
+            </Button>
+          ) : (
+            <>
+              <Badge variant="secondary" className="text-xs">
+                Google connected
+              </Badge>
+              <select
+                value={syncScope}
+                onChange={(e) => setSyncScope(e.target.value as "all" | "month" | "days")}
+                className="border-input bg-background h-8 rounded-md border px-2 text-xs"
+              >
+                <option value="month">Sync this month</option>
+                <option value="all">Sync all renewals</option>
+                <option value="days">Sync selected days</option>
+              </select>
+              <Button
+                size="sm"
+                className="h-8"
+                disabled={syncing}
+                onClick={() => void syncCalendar()}
+              >
+                <RefreshCw className={cn("size-3.5", syncing && "animate-spin")} />
+                {syncing ? "Syncing…" : "Sync"}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>
-            Focus on the month, group, or vendor you care about.
-            <span className="text-muted-foreground mt-1 block text-xs tabular-nums">
-              Loaded {subs.length} subscription{subs.length === 1 ? "" : "s"}
-              {visibleSubscriptions.length < subs.length
-                ? ` · ${visibleSubscriptions.length} match current filters`
-                : null}
-              {subs.length > 0 ? ` · ${totalGridEventChips} renewal chips in grid` : null}
-              {subs.length > 0 && totalGridEventChips === 0 ? (
-                <span className="text-amber-700 dark:text-amber-400">
-                  {" "}
-                  (data loaded but no dates fall in this six-week view — check month or filters)
-                </span>
-              ) : null}
-              <span className="mt-1 block break-all opacity-80">
-                Workspace {resolvedWorkspaceId.slice(-8)} · source{" "}
-                {shellWorkspaceId ? "app shell" : "browser fallback"}
-              </span>
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <Input
-            type="month"
-            value={selectedMonth}
-            onChange={(event) => {
-              if (!event.target.value) return;
-              const [yearValue, monthValue] = event.target.value.split("-").map(Number);
-              if (!yearValue || !monthValue) return;
-              setMonthCursor(new Date(Date.UTC(yearValue, monthValue - 1, 1)));
-            }}
-          />
-          <select
-            value={groupFilter}
-            onChange={(event) => setManualGroupFilter(event.target.value)}
-            className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-          >
-            <option value="all">All groups</option>
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search vendor..."
-          />
-        </CardContent>
-      </Card>
+      {syncMessage && <p className="text-sm text-emerald-600">{syncMessage}</p>}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Google Calendar sync</CardTitle>
-          <CardDescription>
-            Connect and sync renewals from this calendar view. Choose all renewals, just this month,
-            or selected days.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={googleConnected ? "secondary" : "outline"}>
-              {googleConnected ? "Google connected" : "Google not connected"}
-            </Badge>
-            {!googleConnected ? (
-              <Button variant="outline" onClick={() => void connectGoogleCalendar()}>
-                <LinkIcon className="size-4" />
-                Connect Google Calendar
-              </Button>
-            ) : null}
-          </div>
-          <div className="grid gap-3 md:grid-cols-[220px_1fr_auto]">
-            <select
-              value={syncScope}
-              onChange={(event) => setSyncScope(event.target.value as "all" | "month" | "days")}
-              className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-            >
-              <option value="all">Sync all renewals</option>
-              <option value="month">Sync current month ({selectedMonth})</option>
-              <option value="days">Sync selected days</option>
-            </select>
-            <div className="text-muted-foreground text-sm">
-              {syncScope === "days"
-                ? `${selectedSyncDays.size} day${selectedSyncDays.size === 1 ? "" : "s"} selected`
-                : syncScope === "month"
-                  ? `Only renewals in ${monthLabel(monthCursor)} will sync`
-                  : "All renewal records in this workspace will sync"}
-            </div>
-            <Button disabled={!googleConnected || syncing} onClick={() => void syncCalendar()}>
-              {syncing ? "Syncing..." : "Sync now"}
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* ── Filter bar ── */}
+      <div className="flex flex-wrap gap-2">
+        <Input
+          type="month"
+          value={selectedMonth}
+          onChange={(e) => {
+            if (!e.target.value) return;
+            const [y, m] = e.target.value.split("-").map(Number);
+            if (!y || !m) return;
+            setMonthCursor(new Date(Date.UTC(y, m - 1, 1)));
+          }}
+          className="h-9 w-36"
+        />
+        <select
+          value={groupFilter}
+          onChange={(e) => setManualGroupFilter(e.target.value)}
+          className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+        >
+          <option value="all">All groups</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search vendor…"
+          className="h-9 max-w-xs"
+        />
+        {syncScope === "days" && googleConnected && (
+          <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
+              className="h-9"
               onClick={() => {
                 setSyncScope("days");
-                const allMonthDays = calendarDays
-                  .filter((date) => monthKey(date) === selectedMonth)
-                  .map((date) => formatDay(date));
-                setSelectedSyncDays(new Set(allMonthDays));
+                setSelectedSyncDays(
+                  new Set(
+                    calendarDays
+                      .filter((d) => monthKey(d) === selectedMonth)
+                      .map((d) => formatDay(d))
+                  )
+                );
               }}
             >
-              Select entire month
+              Select month
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setSelectedSyncDays(new Set())}>
-              Clear selected days
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => setSelectedSyncDays(new Set())}
+            >
+              Clear
+            </Button>
+            <span className="text-muted-foreground flex items-center text-xs">
+              {selectedSyncDays.size} day{selectedSyncDays.size !== 1 ? "s" : ""} selected
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Calendar grid ── */}
+      <div className="bg-card border-border overflow-hidden rounded-xl border">
+        {/* Month nav */}
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => setMonthSummaryOpen(true)}
+            className="flex items-baseline gap-2 text-left underline-offset-4 hover:underline"
+          >
+            <span className="font-semibold">{monthLabel(monthCursor)}</span>
+            {monthChargeRollup.totalsByCurrency.length > 0 ? (
+              <span className="text-muted-foreground text-sm tabular-nums">
+                {monthChargeRollup.totalsByCurrency
+                  .map((b) => `${b.currency} ${formatCurrency(b.total, b.currency)}`)
+                  .join(" · ")}
+              </span>
+            ) : (
+              <span className="text-muted-foreground text-sm">No renewals</span>
+            )}
+          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => shiftMonth(-1)}>
+              <ChevronLeft className="size-4" />
+            </Button>
+            <select
+              value={String(selectedYear)}
+              onChange={(e) =>
+                setMonthCursor(
+                  (c) => new Date(Date.UTC(Number(e.target.value), c.getUTCMonth(), 1))
+                )
+              }
+              className="border-input bg-background h-8 rounded-md border px-2 text-sm"
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+            <Button variant="ghost" size="icon" className="size-8" onClick={() => shiftMonth(1)}>
+              <ChevronRight className="size-4" />
             </Button>
           </div>
-          {syncMessage ? <p className="text-sm text-emerald-600">{syncMessage}</p> : null}
-        </CardContent>
-      </Card>
+        </div>
 
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not load calendar data</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <Card className="overflow-visible">
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <CardTitle className="leading-tight">Calendar</CardTitle>
-                <button
-                  type="button"
-                  onClick={() => setMonthSummaryOpen(true)}
-                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring max-w-full rounded-sm text-left text-sm underline-offset-4 transition-colors hover:underline focus-visible:ring-2 focus-visible:outline-none"
-                  aria-haspopup="dialog"
-                  aria-expanded={monthSummaryOpen}
-                  aria-label="Open detailed month spend summary"
-                >
-                  {monthChargeRollup.totalsByCurrency.length === 0 ? (
-                    <span className="tabular-nums">No renewals this month</span>
-                  ) : (
-                    <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums">
-                      {monthChargeRollup.totalsByCurrency.map((bucket, index) => (
-                        <span key={bucket.currency}>
-                          {index > 0 ? " · " : null}
-                          {bucket.currency} {formatCurrency(bucket.total, bucket.currency)}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => shiftMonth(-1)}
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => shiftMonth(1)}
-                aria-label="Next month"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-              <select
-                value={String(selectedYear)}
-                onChange={(event) => updateYear(Number(event.target.value))}
-                className="border-input bg-background h-9 rounded-md border px-2 text-sm"
-                aria-label="Choose calendar year"
-              >
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <CardDescription>
-            <span className="mr-2">{monthLabel(monthCursor)}</span>
-            <span className="float-right text-right">Year {selectedYear}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-3 hidden flex-wrap items-center gap-2 text-xs sm:flex">
-            <Badge variant="outline">Click any day box to open details</Badge>
-            <Badge variant="outline">Use checkbox to include days in sync</Badge>
-            <Badge variant="outline">Today highlighted</Badge>
-          </div>
-          <p className="text-muted-foreground mb-3 text-xs sm:hidden">
-            Scroll sideways for full week. Tap a day for details.
-          </p>
-          <div className="-mx-2 overflow-x-auto overscroll-x-contain px-2 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
-            <div className="w-full min-w-[36rem]">
-              <div className="grid grid-cols-7 gap-1 text-[10px] font-medium sm:gap-2 sm:text-xs">
+        {/* Grid */}
+        <div className="p-2 sm:p-3">
+          <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1 pb-1 sm:overflow-visible sm:pb-0">
+            <div className="min-w-[34rem]">
+              <div className="grid grid-cols-7 text-[10px] font-medium sm:text-xs">
                 {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => {
                   const short = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"][i] ?? day.slice(0, 2);
                   return (
-                    <div
-                      key={day}
-                      className="text-muted-foreground px-0.5 py-1 text-center sm:px-2"
-                    >
+                    <div key={day} className="text-muted-foreground px-0.5 py-1 text-center">
                       <span className="sm:hidden">{short}</span>
                       <span className="hidden sm:inline">{day}</span>
                     </div>
                   );
                 })}
               </div>
-              <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((date) => {
                   const key = formatDay(date);
                   const events = eventsByDay.get(key) ?? [];
@@ -669,67 +592,70 @@ export default function CalendarPage() {
                       role="button"
                       tabIndex={0}
                       onClick={() => setSelectedDay(key)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
                           setSelectedDay(key);
                         }
                       }}
-                      className={`flex min-h-[5.25rem] flex-col overflow-visible rounded-lg border p-1 text-left transition-colors sm:min-h-28 sm:p-2 lg:overflow-hidden ${
-                        isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/30"
-                      } ${isToday ? "ring-primary/40 ring-2" : ""} ${isSelected ? "border-primary bg-primary/5" : ""}`}
+                      className={cn(
+                        "flex min-h-20 flex-col overflow-visible rounded-lg border p-1 text-left transition-colors sm:p-1.5 lg:overflow-hidden",
+                        isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/20",
+                        isToday && "ring-primary/40 ring-2",
+                        isSelected && "border-primary bg-primary/5"
+                      )}
                     >
-                      <div className="flex items-center justify-between gap-1">
+                      <div className="flex items-center justify-between gap-0.5">
                         <p
-                          className={`rounded px-1.5 py-0.5 text-xs font-semibold ${isCurrentMonth ? "" : "text-muted-foreground"} ${
-                            isSelected ? "bg-primary text-primary-foreground" : ""
-                          }`}
+                          className={cn(
+                            "rounded px-1 py-0.5 text-xs font-semibold",
+                            !isCurrentMonth && "text-muted-foreground/50",
+                            isSelected && "bg-primary text-primary-foreground"
+                          )}
                         >
                           {date.getUTCDate()}
                         </p>
-                        {isCurrentMonth ? (
+                        {isCurrentMonth && (
                           <button
                             type="button"
                             aria-label={`Select ${key} for sync`}
-                            className={`h-4 w-4 rounded-sm border transition-colors ${
+                            className={cn(
+                              "h-3.5 w-3.5 rounded-sm border transition-colors",
                               selectedSyncDays.has(key)
                                 ? "border-black bg-black"
                                 : "border-zinc-400 bg-transparent"
-                            }`}
-                            onClick={(event) => {
-                              event.stopPropagation();
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSyncScope("days");
                               toggleSyncDay(key);
                             }}
                           />
-                        ) : null}
+                        )}
                       </div>
-                      <div className="mt-1 flex flex-1 flex-col gap-1 overflow-visible lg:max-h-[7.5rem] lg:overflow-y-auto lg:overscroll-y-contain">
-                        {events.slice(0, 3).map((event) => {
-                          const group = first(event.groups);
+                      <div className="mt-0.5 flex flex-1 flex-col gap-0.5 overflow-visible lg:max-h-24 lg:overflow-y-auto lg:overscroll-y-contain">
+                        {events.slice(0, 3).map((ev) => {
+                          const group = first(ev.groups);
                           return (
                             <div
-                              key={event.id}
-                              className="rounded border-l-4 border-indigo-400 bg-indigo-50/70 p-1 dark:bg-indigo-950/30"
+                              key={ev.id}
+                              className="rounded border-l-4 border-indigo-400 bg-indigo-50/70 p-0.5 dark:bg-indigo-950/30"
                             >
-                              <p className="line-clamp-2 text-[10px] leading-tight font-medium break-words sm:line-clamp-none sm:truncate sm:text-xs">
-                                {event.vendor_name}
+                              <p className="line-clamp-1 text-[10px] leading-tight font-medium break-words sm:text-[11px]">
+                                {ev.vendor_name}
                               </p>
-                              <div className="mt-0.5 flex items-center justify-between gap-1">
-                                <Badge
-                                  variant="outline"
-                                  className="h-auto max-w-[min(100%,5rem)] shrink truncate px-1 py-0 text-[9px] leading-tight sm:h-4 sm:max-w-none sm:text-[10px]"
-                                >
-                                  {group?.name ?? "Unknown"}
-                                </Badge>
+                              <div className="flex items-center justify-between gap-1">
+                                <span className="text-muted-foreground truncate text-[9px] sm:text-[10px]">
+                                  {group?.name ?? "—"}
+                                </span>
                                 <span className="shrink-0 text-[9px] sm:text-[10px]">
-                                  {formatCurrency(Number(event.amount ?? 0), event.currency)}
+                                  {formatCurrency(Number(ev.amount ?? 0), ev.currency)}
                                 </span>
                               </div>
                             </div>
                           );
                         })}
-                        {events.length > 3 ? (
+                        {events.length > 3 && (
                           <button
                             type="button"
                             onClick={() => setSelectedDay(key)}
@@ -737,7 +663,7 @@ export default function CalendarPage() {
                           >
                             +{events.length - 3} more
                           </button>
-                        ) : null}
+                        )}
                       </div>
                     </div>
                   );
@@ -745,17 +671,17 @@ export default function CalendarPage() {
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
+      {/* ── Month summary dialog ── */}
       <Dialog open={monthSummaryOpen} onOpenChange={setMonthSummaryOpen}>
         <DialogContent className="max-h-[min(90dvh,36rem)] gap-4 overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Month spend — {monthLabel(monthCursor)}</DialogTitle>
             <DialogDescription className="text-left">
-              Renewal charges scheduled in this month with current filters. One line per
-              subscription; yearly or quarterly renewals count once at their full invoice when they
-              land this month.
+              Renewal charges scheduled in this month. Yearly/quarterly charges count once at full
+              invoice when they land this month.
             </DialogDescription>
           </DialogHeader>
           <div className="border-border space-y-3 border-y py-3">
@@ -765,7 +691,7 @@ export default function CalendarPage() {
               </p>
               {monthChargeRollup.totalsByCurrency.length === 0 ? (
                 <p className="text-muted-foreground mt-1 font-mono text-xs">
-                  No renewal charges in this month for the current filters.
+                  No renewal charges in this month.
                 </p>
               ) : (
                 <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap">
@@ -775,45 +701,39 @@ export default function CalendarPage() {
                 </pre>
               )}
             </div>
-            {monthChargeRollup.byGroup.length > 0 ? (
+            {monthChargeRollup.byGroup.length > 0 && (
               <div className="space-y-3">
                 <p className="text-muted-foreground text-[10px] font-semibold tracking-wide uppercase">
                   By group
                 </p>
-                {monthChargeRollup.byGroup.map((group, groupIndex) => (
+                {monthChargeRollup.byGroup.map((group, idx) => (
                   <div
                     key={group.groupId}
-                    className={`space-y-1.5 ${groupIndex > 0 ? "border-border/80 border-t border-dotted pt-3" : ""}`}
+                    className={cn(
+                      "space-y-1.5",
+                      idx > 0 && "border-border/80 border-t border-dotted pt-3"
+                    )}
                   >
                     <p className="text-muted-foreground font-mono text-xs font-semibold tracking-wide uppercase">
                       {group.name}
                     </p>
-                    <div className="space-y-2">
-                      {group.lines.map((line) => {
-                        const each = formatCurrency(line.amountEach, line.currency);
-                        const sum = formatCurrency(line.lineTotal, line.currency);
-                        const mult = line.occurrences > 1 ? ` ×${line.occurrences}` : "";
-                        return (
-                          <div
-                            key={line.subscriptionId}
-                            className="font-mono text-[11px] leading-snug"
-                          >
-                            <p className="text-foreground">{line.vendor}</p>
-                            <p className="text-muted-foreground pl-2">
-                              <span className="tabular-nums">
-                                {line.currency} {each}
-                                {mult} → {sum}
-                              </span>
-                              <span className="opacity-90">
-                                {" "}
-                                · {line.cadence} · {line.status}
-                              </span>
-                            </p>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-1.5">
+                      {group.lines.map((line) => (
+                        <div
+                          key={line.subscriptionId}
+                          className="font-mono text-[11px] leading-snug"
+                        >
+                          <p className="text-foreground">{line.vendor}</p>
+                          <p className="text-muted-foreground pl-2 tabular-nums">
+                            {line.currency} {formatCurrency(line.amountEach, line.currency)}
+                            {line.occurrences > 1 ? ` ×${line.occurrences}` : ""} →{" "}
+                            {formatCurrency(line.lineTotal, line.currency)} · {line.cadence} ·{" "}
+                            {line.status}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                    <div className="font-mono text-[11px] leading-relaxed tabular-nums">
+                    <div className="font-mono text-[11px] tabular-nums">
                       {group.subtotalsByCurrency.map((s) => (
                         <div key={s.currency}>
                           Subtotal {s.currency} {formatCurrency(s.total, s.currency)}
@@ -823,16 +743,17 @@ export default function CalendarPage() {
                   </div>
                 ))}
               </div>
-            ) : null}
+            )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setMonthSummaryOpen(false)}>
+            <Button variant="outline" onClick={() => setMonthSummaryOpen(false)}>
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* ── Day detail dialog ── */}
       <Dialog
         open={Boolean(selectedDay)}
         onOpenChange={(open) => (open ? undefined : setSelectedDay(null))}
@@ -852,41 +773,43 @@ export default function CalendarPage() {
                 : ""}
             </DialogTitle>
             <DialogDescription>
-              {selectedDayEvents.length} subscription{selectedDayEvents.length === 1 ? "" : "s"} on
-              this day.
+              {selectedDayEvents.length} subscription
+              {selectedDayEvents.length !== 1 ? "s" : ""} renewing.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2">
             {selectedDayTotals.length === 0 ? (
               <Badge variant="outline">No spend records</Badge>
             ) : (
-              selectedDayTotals.map((bucket) => (
-                <Badge key={`day-total-${bucket.currency}`} variant="secondary">
-                  {bucket.currency} {formatCurrency(bucket.total, bucket.currency)}
+              selectedDayTotals.map((b) => (
+                <Badge key={b.currency} variant="secondary">
+                  {b.currency} {formatCurrency(b.total, b.currency)}
                 </Badge>
               ))
             )}
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {selectedDayEvents.length === 0 ? (
               <p className="text-muted-foreground text-sm">No renewals on this date.</p>
             ) : (
-              selectedDayEvents.map((event) => {
-                const group = first(event.groups);
+              selectedDayEvents.map((ev) => {
+                const group = first(ev.groups);
                 return (
-                  <div key={`dialog-${event.id}`} className="rounded-md border p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{event.vendor_name}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {group?.name ?? "Unknown group"} • {event.status}
-                        </p>
-                      </div>
-                      <Badge variant="outline">{event.cadence}</Badge>
+                  <div key={ev.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{ev.vendor_name}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {group?.name ?? "Unknown group"} · {ev.status}
+                      </p>
                     </div>
-                    <p className="mt-1 text-sm font-medium">
-                      {formatCurrency(Number(event.amount ?? 0), event.currency)}
-                    </p>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-medium tabular-nums">
+                        {formatCurrency(Number(ev.amount ?? 0), ev.currency)}
+                      </p>
+                      <Badge variant="outline" className="text-xs">
+                        {ev.cadence}
+                      </Badge>
+                    </div>
                   </div>
                 );
               })

@@ -5,15 +5,20 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  FileUp,
   LayoutGrid,
   List,
+  Loader2,
   MoreHorizontal,
   Pencil,
   Plus,
   Search,
   Settings2,
+  Sparkles,
   Trash2,
+  X,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -117,6 +122,12 @@ export default function SubscriptionsPage() {
   const [category, setCategory] = useState("");
   const [subNotes, setSubNotes] = useState("");
   const [subStatus, setSubStatus] = useState<SubStatus>("active");
+
+  // Receipt extraction
+  const [extracting, setExtracting] = useState(false);
+  const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
+  const [extractHints, setExtractHints] = useState<string[]>([]);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
 
   // Group management
   const [manageOpen, setManageOpen] = useState(false);
@@ -236,7 +247,56 @@ export default function SubscriptionsPage() {
     setSubNotes("");
     setSubStatus("active");
     setEditingId(null);
+    setReceiptFileName(null);
+    setExtractHints([]);
+    setExtracting(false);
     setAddOpen(true);
+  }
+
+  async function handleReceiptFile(file: File) {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    setExtracting(true);
+    setReceiptFileName(file.name);
+    setExtractHints([]);
+    const form = new FormData();
+    form.append("workspaceId", state.workspaceId);
+    form.append("file", file);
+    const res = await fetch("/api/subscriptions/extract-from-file", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: form,
+    });
+    const json = (await res.json().catch(() => ({}))) as {
+      ok?: boolean;
+      error?: string;
+      fields?: {
+        vendorName: string | null;
+        amount: number | null;
+        currency: string | null;
+        cadence: Cadence | null;
+        renewalDate: string | null;
+      };
+      hints?: string[];
+    };
+    setExtracting(false);
+    if (!res.ok || !json.fields) {
+      setError(json.error ?? "Could not read receipt.");
+      setReceiptFileName(null);
+      return;
+    }
+    if (json.fields.vendorName) setVendor(json.fields.vendorName);
+    if (json.fields.amount !== null && json.fields.amount !== undefined)
+      setAmount(String(json.fields.amount));
+    if (json.fields.currency) setCurrency(json.fields.currency);
+    if (json.fields.cadence) setCadence(json.fields.cadence);
+    if (json.fields.renewalDate) setRenewalDate(json.fields.renewalDate);
+    if (json.hints?.length) setExtractHints(json.hints);
   }
 
   function openEdit(groupId: string, sub: SubscriptionRow) {
@@ -582,6 +642,12 @@ export default function SubscriptionsPage() {
             <Settings2 className="size-3.5" />
             <span className="hidden sm:inline">Manage groups</span>
           </Button>
+          <Link href="/documents" className="hidden sm:block">
+            <Button variant="outline" size="sm">
+              <FileUp className="size-3.5" />
+              Bulk upload
+            </Button>
+          </Link>
           <Button size="sm" onClick={() => openAdd("")}>
             <Plus className="size-4" />
             Add
@@ -896,19 +962,84 @@ export default function SubscriptionsPage() {
       )}
 
       {/* ── ADD SUBSCRIPTION ── */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+      <Dialog
+        open={addOpen}
+        onOpenChange={(o) => {
+          setAddOpen(o);
+          if (!o) {
+            setReceiptFileName(null);
+            setExtractHints([]);
+          }
+        }}
+      >
         <DialogContent className={DIALOG_CLASS}>
           <DialogHeader>
             <DialogTitle>Add subscription</DialogTitle>
-            <DialogDescription>Track a recurring charge in your workspace.</DialogDescription>
+            <DialogDescription>Fill manually or upload a receipt to auto-fill.</DialogDescription>
           </DialogHeader>
+
+          {/* Receipt upload */}
+          <div className="border-border rounded-lg border border-dashed px-3 py-2.5">
+            {extracting ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Loader2 className="text-primary size-4 animate-spin" />
+                <span>Reading receipt…</span>
+              </div>
+            ) : receiptFileName ? (
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2 text-sm">
+                  <Sparkles className="text-primary size-4 shrink-0" />
+                  <span className="truncate">
+                    Auto-filled from <span className="font-medium">{receiptFileName}</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => {
+                    setReceiptFileName(null);
+                    setExtractHints([]);
+                  }}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-muted-foreground text-xs">
+                  Upload a receipt or invoice to auto-fill the form
+                </p>
+                <label className="cursor-pointer">
+                  <input
+                    ref={receiptInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,image/*,application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleReceiptFile(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <span className="text-primary flex items-center gap-1 text-xs hover:underline">
+                    <FileUp className="size-3.5" />
+                    Upload receipt
+                  </span>
+                </label>
+              </div>
+            )}
+            {extractHints.length > 0 && (
+              <p className="text-muted-foreground mt-1.5 text-xs">{extractHints[0]}</p>
+            )}
+          </div>
+
           {subFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
             <Button
-              disabled={saving || !formGroupId || !vendor.trim() || !renewalDate}
+              disabled={saving || extracting || !formGroupId || !vendor.trim() || !renewalDate}
               onClick={() => void createSub()}
             >
               {saving ? "Saving…" : "Save subscription"}
