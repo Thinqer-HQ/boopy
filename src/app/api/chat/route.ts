@@ -85,6 +85,8 @@ export async function POST(req: Request) {
     get_workspace_overview: boopyTools.getWorkspaceOverview,
     create_group: boopyTools.createGroup,
     create_subscription: boopyTools.createSubscription,
+    update_subscription: boopyTools.updateSubscription,
+    delete_subscription: boopyTools.deleteSubscription,
   };
 
   const result = streamText({
@@ -92,8 +94,14 @@ export async function POST(req: Request) {
     messages: convertToCoreMessages(forCore, { tools }),
     system: BOOPY_ASSISTANT_SYSTEM_PROMPT,
     tools,
-    maxSteps: 6,
-    experimental_activeTools: ["get_workspace_overview", "create_group", "create_subscription"],
+    maxSteps: 8,
+    experimental_activeTools: [
+      "get_workspace_overview",
+      "create_group",
+      "create_subscription",
+      "update_subscription",
+      "delete_subscription",
+    ],
   });
 
   return result.toDataStreamResponse();

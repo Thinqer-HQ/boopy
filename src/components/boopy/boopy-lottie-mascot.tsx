@@ -82,7 +82,7 @@ export function BoopyLottieMascot({
   return (
     <div
       ref={containerRef}
-      className={className}
+      className={`${className ?? ""} animate-mascot-pop`}
       role="img"
       aria-label={media.imageAlt}
       suppressHydrationWarning

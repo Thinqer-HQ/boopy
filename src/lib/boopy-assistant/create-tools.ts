@@ -199,5 +199,104 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
     },
   });
 
-  return { getWorkspaceOverview, createGroup, createSubscription };
+  const updateSubscription = tool({
+    description:
+      "Boopy ONLY: update one or more fields on an existing subscription in the user's primary workspace. Only supply fields you want to change. Use get_workspace_overview to find the subscription id first.",
+    parameters: z.object({
+      subscription_id: z.string().uuid().describe("ID of the subscription to update"),
+      vendor_name: z.string().min(1).max(200).optional(),
+      amount: z.number().nonnegative().optional(),
+      currency: z
+        .string()
+        .min(3)
+        .max(8)
+        .transform((s) => s.trim().toUpperCase())
+        .optional(),
+      cadence: z.enum(["monthly", "yearly", "quarterly", "custom"]).optional(),
+      renewal_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional()
+        .describe("ISO date YYYY-MM-DD"),
+      start_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      end_date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      status: z.enum(["active", "paused", "cancelled"]).optional(),
+      category: z.string().max(120).optional(),
+      notes: z.string().max(2000).optional(),
+    }),
+    execute: async ({ subscription_id, ...fields }) => {
+      const { error, workspace } = await primaryWorkspaceId(supabase);
+      if (error || !workspace) return jsonError(error ?? "Workspace missing");
+
+      const patch: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== undefined) patch[k] = typeof v === "string" ? v.trim() || null : v;
+      }
+      if (Object.keys(patch).length === 0) {
+        return jsonError("No fields to update — supply at least one field to change.");
+      }
+
+      const { data, error: upErr } = await supabase
+        .from("subscriptions")
+        .update(patch)
+        .eq("id", subscription_id)
+        .select("id, vendor_name, renewal_date, status, group_id")
+        .maybeSingle();
+
+      if (upErr) return jsonError(upErr.message);
+      if (!data) return jsonError("Subscription not found or you don't have access to it.");
+      return jsonOk({ updated: data });
+    },
+  });
+
+  const deleteSubscription = tool({
+    description:
+      "Boopy ONLY: permanently delete a subscription from the user's primary workspace. This is irreversible. Always confirm with the user before calling this tool.",
+    parameters: z.object({
+      subscription_id: z.string().uuid().describe("ID of the subscription to delete"),
+      confirmed: z
+        .boolean()
+        .describe(
+          "Must be true — the user explicitly confirmed they want to delete this subscription"
+        ),
+    }),
+    execute: async ({ subscription_id, confirmed }) => {
+      if (!confirmed) {
+        return jsonError("User did not confirm deletion. Ask them to confirm before proceeding.");
+      }
+
+      const { error, workspace } = await primaryWorkspaceId(supabase);
+      if (error || !workspace) return jsonError(error ?? "Workspace missing");
+
+      const { data: existing } = await supabase
+        .from("subscriptions")
+        .select("id, vendor_name")
+        .eq("id", subscription_id)
+        .maybeSingle();
+
+      if (!existing) return jsonError("Subscription not found or already deleted.");
+
+      const { error: delErr } = await supabase
+        .from("subscriptions")
+        .delete()
+        .eq("id", subscription_id);
+
+      if (delErr) return jsonError(delErr.message);
+      return jsonOk({ deleted: { id: subscription_id, vendor_name: existing.vendor_name } });
+    },
+  });
+
+  return {
+    getWorkspaceOverview,
+    createGroup,
+    createSubscription,
+    updateSubscription,
+    deleteSubscription,
+  };
 }
