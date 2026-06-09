@@ -74,13 +74,13 @@ const fallbackContent: MarketingContent = {
     "See every subscription. Know what is due. Stop surprise charges. All in one clean dashboard.",
   primaryCta: {
     label: "Start free",
-    url: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
+    url: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://www.useboopy.com",
   },
   secondaryCta: {
     label: "See pricing",
-    url: `${(process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login").replace(/\/login$/, "")}/settings/billing`,
+    url: `${(process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://www.useboopy.com").replace(/\/login$/, "")}/settings/billing`,
   },
-  dashboardUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.boopy.dev/login",
+  dashboardUrl: process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://www.useboopy.com",
   socialProof: [
     { value: "One place", label: "All subscriptions" },
     { value: "No surprises", label: "Renewal reminders" },
