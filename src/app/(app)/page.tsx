@@ -10,6 +10,7 @@ import {
   FileText,
   Plus,
   Sparkles,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
 import { getBoopyEmotionState } from "@/lib/boopy/emotion-state";
 import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/lib/reports/spend";
@@ -78,8 +80,8 @@ function GroupCard({
   const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length] ?? GROUP_COLORS[0];
   const top = buckets[0];
   return (
-    <Link href={`/subscriptions?group=${groupId}`}>
-      <Card className="overflow-hidden p-0 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md">
+    <Link href={`/subscriptions?group=${groupId}`} className="cursor-pointer">
+      <Card className="overflow-hidden p-0 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
         <div className="h-1.5 w-full" style={{ background: color }} />
         <div className="p-4">
           <p className="truncate font-semibold">{name}</p>
@@ -227,7 +229,29 @@ export default function AppHome() {
   }
 
   if (state.status === "loading") {
-    return <div className="text-muted-foreground p-8 text-sm">Loading dashboard…</div>;
+    return (
+      <div className="flex flex-col gap-6 p-4 md:p-8">
+        <Skeleton className="h-[110px] w-full rounded-3xl" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pt-4 pb-1">
+                <Skeleton className="h-3 w-20" />
+              </CardHeader>
+              <CardContent className="pb-4">
+                <Skeleton className="h-9 w-16" />
+                <Skeleton className="mt-1.5 h-3 w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-[110px] rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (state.status === "error") {
@@ -339,15 +363,15 @@ export default function AppHome() {
           </Card>
         </Link>
 
-        <Card>
+        <Card className="from-primary/8 to-primary/4 border-primary/20 bg-gradient-to-br">
           <CardHeader className="flex flex-row items-center justify-between pt-4 pb-1">
-            <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+            <CardTitle className="text-primary text-xs font-semibold tracking-wide uppercase">
               Monthly
             </CardTitle>
-            <DollarSign className="text-muted-foreground size-4" />
+            <TrendingUp className="text-primary size-4" />
           </CardHeader>
           <CardContent className="pb-4">
-            <div className="font-heading text-3xl font-semibold">
+            <div className="font-heading text-primary text-3xl font-semibold">
               {primaryMonthly > 0 ? formatCurrency(primaryMonthly, primaryCurrency) : "—"}
             </div>
             <p className="text-muted-foreground mt-0.5 text-xs">
@@ -434,9 +458,24 @@ export default function AppHome() {
           </CardHeader>
           <CardContent>
             {upcomingRenewals.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No upcoming renewals. Add subscriptions to start seeing reminders.
-              </p>
+              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <span className="bg-primary/10 text-primary flex size-11 items-center justify-center rounded-2xl">
+                  <CalendarIcon className="size-5" />
+                </span>
+                <div>
+                  <p className="font-medium">All clear for 30 days</p>
+                  <p className="text-muted-foreground mt-0.5 text-sm">
+                    No renewals coming up. Add subscriptions to track them here.
+                  </p>
+                </div>
+                <Link
+                  href="/subscriptions"
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-1 gap-1.5")}
+                >
+                  <Plus className="size-3.5" />
+                  Add subscription
+                </Link>
+              </div>
             ) : (
               <div className="-mx-1">
                 {upcomingRenewals.slice(0, 8).map((subscription) => {
@@ -502,11 +541,13 @@ export default function AppHome() {
                 href={href}
                 className={cn(buttonVariants({ variant: "outline" }), "justify-between")}
               >
-                <span className="flex items-center gap-2">
-                  <ActionIcon className="size-4 opacity-60" />
+                <span className="flex items-center gap-2.5">
+                  <span className="bg-primary/10 text-primary flex size-6 items-center justify-center rounded-md">
+                    <ActionIcon className="size-3.5" />
+                  </span>
                   {label}
                 </span>
-                <ArrowRight className="size-4 opacity-50" />
+                <ArrowRight className="size-4 opacity-40" />
               </Link>
             ))}
           </CardContent>
