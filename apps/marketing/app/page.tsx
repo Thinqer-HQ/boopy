@@ -52,10 +52,10 @@ export default async function MarketingHomePage() {
               <h1 className="hero-title">{content.heroTitle}</h1>
               <p className="hero-subtitle">{content.heroSubtitle}</p>
               <div className="cta-row">
-                <a href={content.primaryCta.url} className="btn btn-primary">
+                <a href={appUrl} className="btn btn-primary">
                   {content.primaryCta.label}
                 </a>
-                <a href={content.secondaryCta.url} className="btn btn-ghost">
+                <a href={upgradeUrl} className="btn btn-ghost">
                   {content.secondaryCta.label}
                 </a>
               </div>
