@@ -296,6 +296,40 @@ export default async function MarketingHomePage() {
               <div className="footer-copy" style={{ marginTop: "0.25rem" }}>
                 {content.seo.description}
               </div>
+              <div
+                style={{ marginTop: "0.75rem", display: "flex", gap: "1.25rem", flexWrap: "wrap" }}
+              >
+                <a
+                  href="/privacy"
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted, #888)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Privacy Policy
+                </a>
+                <a
+                  href="/terms"
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted, #888)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Terms of Service
+                </a>
+                <a
+                  href="/cookies"
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted, #888)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Cookie Policy
+                </a>
+              </div>
             </div>
             <div className="footer-actions">
               <a

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { tool } from "ai";
+import { jsonSchema, tool } from "ai";
 import { z } from "zod";
 
 function jsonError(message: string) {
@@ -37,7 +37,10 @@ export function createBoopyAssistantTools(supabase: SupabaseClient) {
   const getWorkspaceOverview = tool({
     description:
       "Boopy ONLY: read-only snapshot of the signed-in user's primary Boopy workspace — workspace id/name/default_currency, all groups in that workspace, and up to 40 subscriptions ordered by next renewal. No other product or data source. Use when answering anything about the user's current Boopy records or before creating a subscription if group ids are unknown.",
-    parameters: z.object({}),
+    parameters: jsonSchema<Record<string, never>>({
+      type: "object",
+      properties: {},
+    }),
     execute: async () => {
       const { error, workspace } = await primaryWorkspaceId(supabase);
       if (error || !workspace) return jsonError(error ?? "Workspace missing");

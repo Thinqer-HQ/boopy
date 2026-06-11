@@ -37,8 +37,8 @@ import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/li
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import {
+  nextOccurrenceDayKeyOnOrAfter,
   recurrenceBoundsFromNullable,
-  recurrenceOccurrenceDayKeysInUtcRange,
   type SubscriptionCadence,
 } from "@/lib/subscriptions/recurrence";
 
@@ -158,19 +158,21 @@ export default function AppHome() {
 
   const upcomingRenewals = useMemo(() => {
     const now = new Date();
-    const cutoff = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    return subscriptions.filter((subscription) => {
-      if (subscription.status !== "active") return false;
-      const bounds = recurrenceBoundsFromNullable(subscription.start_date, subscription.end_date);
-      const keys = recurrenceOccurrenceDayKeysInUtcRange(
-        subscription.renewal_date,
-        subscription.cadence,
-        now,
-        cutoff,
-        bounds
-      );
-      return keys.length > 0;
-    });
+    // End of next calendar month (this month + next month)
+    const endOfNextMonth = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0, 23, 59, 59, 999)
+    );
+    const result: Array<{ sub: SubscriptionRow; nextDate: string }> = [];
+    for (const sub of subscriptions) {
+      if (sub.status !== "active") continue;
+      const bounds = recurrenceBoundsFromNullable(sub.start_date, sub.end_date);
+      const nextDate = nextOccurrenceDayKeyOnOrAfter(sub.renewal_date, sub.cadence, now, bounds);
+      if (!nextDate) continue;
+      const nextDateUtc = new Date(`${nextDate}T00:00:00.000Z`);
+      if (nextDateUtc > endOfNextMonth) continue;
+      result.push({ sub, nextDate });
+    }
+    return result.sort((a, b) => (a.nextDate < b.nextDate ? -1 : a.nextDate > b.nextDate ? 1 : 0));
   }, [subscriptions]);
 
   const totalsByCurrency = useMemo(
@@ -324,7 +326,7 @@ export default function AppHome() {
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
               {activeCount > 0
-                ? `${activeCount} active subscription${activeCount !== 1 ? "s" : ""}${upcomingRenewals.length > 0 ? ` · ${upcomingRenewals.length} renewal${upcomingRenewals.length !== 1 ? "s" : ""} in 30 days` : ""} · all reminders armed.`
+                ? `${activeCount} active subscription${activeCount !== 1 ? "s" : ""}${upcomingRenewals.length > 0 ? ` · ${upcomingRenewals.length} renewal${upcomingRenewals.length !== 1 ? "s" : ""} this or next month` : ""} · all reminders armed.`
                 : "Add your first subscription to get started."}
             </p>
           </div>
@@ -414,7 +416,7 @@ export default function AppHome() {
             </CardHeader>
             <CardContent className="pb-4">
               <div className="font-heading text-3xl font-semibold">{upcomingRenewals.length}</div>
-              <p className="text-muted-foreground mt-0.5 text-xs">renewals in 30 days</p>
+              <p className="text-muted-foreground mt-0.5 text-xs">this &amp; next month</p>
             </CardContent>
           </Card>
         </Link>
@@ -476,7 +478,9 @@ export default function AppHome() {
                 Calendar →
               </Link>
             </div>
-            <CardDescription>Active subscriptions renewing in the next 30 days.</CardDescription>
+            <CardDescription>
+              Active subscriptions renewing this month or next month.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {upcomingRenewals.length === 0 ? (
@@ -500,25 +504,23 @@ export default function AppHome() {
               </div>
             ) : (
               <div className="-mx-1">
-                {upcomingRenewals.slice(0, 8).map((subscription) => {
-                  const group = first(subscription.groups);
+                {upcomingRenewals.slice(0, 8).map(({ sub, nextDate }) => {
+                  const group = first(sub.groups);
                   return (
                     <Link
-                      key={subscription.id}
-                      href={`/calendar?date=${subscription.renewal_date}`}
+                      key={sub.id}
+                      href={`/calendar?date=${nextDate}`}
                       className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-xl px-3 py-1.5 text-sm"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{subscription.vendor_name}</p>
+                        <p className="truncate font-medium">{sub.vendor_name}</p>
                         <p className="text-muted-foreground truncate text-xs">
-                          {group?.name ?? "Unknown group"} · {subscription.renewal_date}
+                          {group?.name ?? "Unknown group"} · {nextDate}
                         </p>
                       </div>
                       <p className="shrink-0 font-semibold tabular-nums">
-                        {Number(subscription.amount ?? 0).toFixed(2)}{" "}
-                        <span className="text-muted-foreground font-normal">
-                          {subscription.currency}
-                        </span>
+                        {Number(sub.amount ?? 0).toFixed(2)}{" "}
+                        <span className="text-muted-foreground font-normal">{sub.currency}</span>
                       </p>
                     </Link>
                   );

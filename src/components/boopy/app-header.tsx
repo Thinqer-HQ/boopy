@@ -7,6 +7,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import Image from "next/image";
@@ -306,6 +307,15 @@ export function AppHeader({ className }: { className?: string }) {
             >
               <CreditCard className="size-4" />
               Billing
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => {
+                router.push("/settings/account");
+              }}
+            >
+              <ShieldCheck className="size-4" />
+              Account & Privacy
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem

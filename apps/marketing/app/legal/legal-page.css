@@ -1,0 +1,90 @@
+.legal-body {
+  font-family: var(--font-manrope, Manrope, system-ui, sans-serif);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: #17151f;
+}
+
+.legal-body h1 {
+  font-family: var(--font-fredoka, Fredoka, sans-serif);
+  font-size: 2rem;
+  font-weight: 600;
+  color: #17151f;
+  margin: 0 0 0.35rem;
+}
+
+.legal-body .legal-meta {
+  font-size: 0.8125rem;
+  color: #888;
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.legal-body h2 {
+  font-family: var(--font-fredoka, Fredoka, sans-serif);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 2.5rem 0 0.75rem;
+  color: #17151f;
+}
+
+.legal-body h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.legal-body p {
+  margin: 0 0 1rem;
+}
+
+.legal-body ul,
+.legal-body ol {
+  padding-left: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+.legal-body li {
+  margin-bottom: 0.35rem;
+}
+
+.legal-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.legal-body th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #f1f0f6;
+  font-weight: 700;
+  border: 1px solid #eceaf3;
+}
+
+.legal-body td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #eceaf3;
+  vertical-align: top;
+}
+
+.legal-body a {
+  color: #6d5df6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-body strong {
+  font-weight: 700;
+}
+
+.legal-body .legal-highlight {
+  background: #efecfe;
+  border-left: 3px solid #6d5df6;
+  padding: 0.875rem 1rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin: 1.25rem 0;
+  font-size: 0.9rem;
+}

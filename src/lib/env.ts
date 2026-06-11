@@ -45,6 +45,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: requiredNonEmptyInStrict,
   STRIPE_WEBHOOK_SECRET: requiredNonEmptyInStrict,
   STRIPE_PRICE_PRO_MONTHLY: requiredNonEmptyInStrict,
+  STRIPE_PRICE_PRO_ANNUAL: optionalNonEmpty,
 
   // Google Calendar
   GOOGLE_CLIENT_ID: requiredNonEmptyInStrict,

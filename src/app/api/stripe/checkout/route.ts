@@ -10,6 +10,8 @@ type CheckoutRequestBody = {
   workspaceId?: string;
   /** Optional customer-facing code from Stripe (Promotion codes in Dashboard). */
   promotionCode?: string;
+  /** Billing interval for the subscription. Defaults to monthly. */
+  interval?: "monthly" | "annual";
 };
 
 export async function POST(request: Request) {
@@ -60,6 +62,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Stripe price is not configured" }, { status: 500 });
   }
 
+  const interval = body.interval ?? "monthly";
+  const priceId =
+    interval === "annual" && env.STRIPE_PRICE_PRO_ANNUAL
+      ? env.STRIPE_PRICE_PRO_ANNUAL
+      : env.STRIPE_PRICE_PRO_MONTHLY;
+
   const { data: existingBilling } = await supabase
     .from("workspace_billing")
     .select("stripe_customer_id")
@@ -87,7 +95,7 @@ export async function POST(request: Request) {
     mode: "subscription",
     line_items: [
       {
-        price: env.STRIPE_PRICE_PRO_MONTHLY,
+        price: priceId,
         quantity: 1,
       },
     ],
@@ -116,6 +124,7 @@ export async function POST(request: Request) {
     workspaceId,
     userId,
     stripeSessionId: session.id,
+    interval,
     promotionSource: promotionCodeInput ? "body" : "stripe_checkout",
   });
 

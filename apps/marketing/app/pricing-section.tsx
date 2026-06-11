@@ -123,7 +123,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
           <h3>
             <span className="pricing-price-current">${price}</span>
             <span className="pricing-price-period">/mo</span>
-            <span className="pricing-price-was">${ORIGINAL_PRICE}</span>
+            <span className="pricing-price-was">{ORIGINAL_PRICE}</span>
           </h3>
           <p className="muted">
             {isAnnual
