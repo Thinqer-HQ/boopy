@@ -102,7 +102,18 @@ export async function POST(req: Request) {
       "update_subscription",
       "delete_subscription",
     ],
+    onError: (event) => {
+      log.error("boopy_chat_stream_error", {
+        label: picked.label,
+        error: event.error instanceof Error ? event.error.message : String(event.error),
+      });
+    },
   });
 
-  return result.toDataStreamResponse();
+  return result.toDataStreamResponse({
+    getErrorMessage: (error) => {
+      if (error instanceof Error) return `${picked.label}: ${error.message}`;
+      return String(error);
+    },
+  });
 }

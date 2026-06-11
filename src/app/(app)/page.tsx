@@ -498,7 +498,7 @@ export default function AppHome() {
                   return (
                     <Link
                       key={subscription.id}
-                      href={`/calendar?date=${subscription.renewal_date}&highlight=${subscription.id}`}
+                      href={`/calendar?date=${subscription.renewal_date}`}
                       className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-xl px-3 py-1.5 text-sm"
                     >
                       <div className="min-w-0">

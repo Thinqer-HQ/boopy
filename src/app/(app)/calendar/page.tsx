@@ -91,6 +91,7 @@ export default function CalendarPage() {
     return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [focusedDay, setFocusedDay] = useState<string | null>(null);
   const [monthSummaryOpen, setMonthSummaryOpen] = useState(false);
   const [selectedSyncDays, setSelectedSyncDays] = useState<Set<string>>(new Set());
   const [syncScope, setSyncScope] = useState<"all" | "month" | "days">("month");
@@ -102,7 +103,6 @@ export default function CalendarPage() {
   const groupIdFromQuery = searchParams.get("groupId")?.trim() ?? "";
   const groupFilter = manualGroupFilter ?? (groupIdFromQuery || "all");
   const dateParam = searchParams.get("date")?.trim() ?? "";
-  const highlightId = searchParams.get("highlight")?.trim() ?? "";
 
   const resolvedWorkspaceId =
     shellWorkspaceId ?? (state.status === "ready" ? state.workspaceId : null);
@@ -161,13 +161,13 @@ export default function CalendarPage() {
     if (!known.has(groupFilter)) setManualGroupFilter("all");
   }, [groupFilter, groups]);
 
-  // Navigate to date and open day detail from URL params
+  // Navigate to date from URL param — highlight the cell but don't open dialog
   useEffect(() => {
     if (!dateParam) return;
     const d = new Date(`${dateParam}T00:00:00.000Z`);
     if (isNaN(d.getTime())) return;
     setMonthCursor(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
-    setSelectedDay(dateParam);
+    setFocusedDay(dateParam);
   }, [dateParam]);
 
   const visibleSubscriptions = useMemo(() => {
@@ -597,23 +597,29 @@ export default function CalendarPage() {
                   const isCurrentMonth = monthKey(date) === selectedMonth;
                   const isToday = key === todayKey;
                   const isSelected = key === selectedDay;
+                  const isFocused = !isSelected && key === focusedDay;
                   return (
                     <div
                       key={key}
                       role="button"
                       tabIndex={0}
-                      onClick={() => setSelectedDay(key)}
+                      onClick={() => {
+                        setSelectedDay(key);
+                        setFocusedDay(null);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           setSelectedDay(key);
+                          setFocusedDay(null);
                         }
                       }}
                       className={cn(
                         "flex min-h-20 flex-col overflow-visible rounded-lg border p-1 text-left transition-colors sm:p-1.5 lg:overflow-hidden",
                         isCurrentMonth ? "bg-background hover:bg-muted/40" : "bg-muted/20",
                         isToday && "ring-primary/40 ring-2",
-                        isSelected && "border-primary bg-primary/5"
+                        isSelected && "border-primary bg-primary/5",
+                        isFocused && "border-primary/60 bg-primary/5 ring-primary/30 ring-2"
                       )}
                     >
                       <div className="flex items-center justify-between gap-0.5">
@@ -621,7 +627,8 @@ export default function CalendarPage() {
                           className={cn(
                             "rounded px-1 py-0.5 text-xs font-semibold",
                             !isCurrentMonth && "text-muted-foreground/50",
-                            isSelected && "bg-primary text-primary-foreground"
+                            isSelected && "bg-primary text-primary-foreground",
+                            isFocused && "bg-primary/20 text-primary"
                           )}
                         >
                           {date.getUTCDate()}
@@ -805,15 +812,8 @@ export default function CalendarPage() {
             ) : (
               selectedDayEvents.map((ev) => {
                 const group = first(ev.groups);
-                const isHighlighted = highlightId === ev.id;
                 return (
-                  <div
-                    key={ev.id}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg border px-3 py-2",
-                      isHighlighted && "border-primary bg-primary/5"
-                    )}
-                  >
+                  <div key={ev.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{ev.vendor_name}</p>
                       <p className="text-muted-foreground text-xs">
