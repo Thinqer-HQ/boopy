@@ -1,6 +1,7 @@
 "use client";
 
-import { BellRing, Loader2, Mail, Sparkles } from "lucide-react";
+import Image from "next/image";
+import { Loader2, Mail, Sparkles } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -152,9 +153,14 @@ export default function LoginPage() {
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="bg-muted/40 relative hidden flex-col justify-between border-r p-10 lg:flex">
         <div className="font-heading flex items-center gap-2 text-lg font-semibold">
-          <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-lg">
-            <BellRing className="size-5" />
-          </span>
+          <Image
+            src="/boopy-assets/boopy-icon.png"
+            alt=""
+            width={36}
+            height={36}
+            className="size-9 rounded-xl"
+            priority
+          />
           Boopy
         </div>
         <div className="flex flex-1 items-center justify-center py-6">

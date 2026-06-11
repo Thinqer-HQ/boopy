@@ -180,17 +180,15 @@ export function AppHeader({ className }: { className?: string }) {
         </DropdownMenu>
 
         <Link href="/" className="flex shrink-0 items-center gap-2">
-          <div className="from-primary/70 to-primary flex size-8 shrink-0 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-br">
-            <Image
-              src="/boopy-assets/boopy-hi.png"
-              alt=""
-              width={32}
-              height={32}
-              className="-mb-0.5 size-7"
-              draggable={false}
-              priority
-            />
-          </div>
+          <Image
+            src="/boopy-assets/boopy-icon.png"
+            alt="Boopy"
+            width={32}
+            height={32}
+            className="size-8 shrink-0 rounded-xl"
+            draggable={false}
+            priority
+          />
           <span className="font-heading text-foreground hidden shrink-0 text-lg font-semibold tracking-tight sm:inline">
             Boopy
           </span>

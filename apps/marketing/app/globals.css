@@ -132,22 +132,12 @@ img {
   gap: 0.625rem;
 }
 
-.brand-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.brand-logo-img {
   width: 36px;
   height: 36px;
-  background: var(--brand);
   border-radius: 10px;
   flex-shrink: 0;
-}
-
-.brand-logo-dot {
-  width: 14px;
-  height: 14px;
-  background: #fff;
-  border-radius: 50%;
+  display: block;
 }
 
 .brand-name {

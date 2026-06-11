@@ -37,9 +37,15 @@ export default async function MarketingHomePage() {
       <header className="header">
         <div className="header-inner container">
           <div className="brand-wrap">
-            <div className="brand-logo" aria-hidden="true">
-              <div className="brand-logo-dot" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/boopy-icon.png"
+              alt=""
+              width={32}
+              height={32}
+              className="brand-logo-img"
+              aria-hidden="true"
+            />
             <span className="brand-name">Boopy</span>
             <span className="brand-copy">{content.brandStatement}</span>
           </div>
