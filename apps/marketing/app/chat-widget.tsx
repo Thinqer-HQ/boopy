@@ -110,7 +110,7 @@ export function ChatWidget() {
       {/* Floating trigger */}
       <button
         type="button"
-        className={`chat-trigger${open ? "chat-trigger-open" : ""}`}
+        className={"chat-trigger" + (open ? " chat-trigger-open" : "")}
         aria-label={open ? "Close chat" : "Open support chat"}
         onClick={() => setOpen((o) => !o)}
       >
