@@ -101,6 +101,8 @@ export default function CalendarPage() {
   const selectedYear = monthCursor.getUTCFullYear();
   const groupIdFromQuery = searchParams.get("groupId")?.trim() ?? "";
   const groupFilter = manualGroupFilter ?? (groupIdFromQuery || "all");
+  const dateParam = searchParams.get("date")?.trim() ?? "";
+  const highlightId = searchParams.get("highlight")?.trim() ?? "";
 
   const resolvedWorkspaceId =
     shellWorkspaceId ?? (state.status === "ready" ? state.workspaceId : null);
@@ -158,6 +160,15 @@ export default function CalendarPage() {
     const known = new Set(groups.map((g) => g.id));
     if (!known.has(groupFilter)) setManualGroupFilter("all");
   }, [groupFilter, groups]);
+
+  // Navigate to date and open day detail from URL params
+  useEffect(() => {
+    if (!dateParam) return;
+    const d = new Date(`${dateParam}T00:00:00.000Z`);
+    if (isNaN(d.getTime())) return;
+    setMonthCursor(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+    setSelectedDay(dateParam);
+  }, [dateParam]);
 
   const visibleSubscriptions = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -794,8 +805,15 @@ export default function CalendarPage() {
             ) : (
               selectedDayEvents.map((ev) => {
                 const group = first(ev.groups);
+                const isHighlighted = highlightId === ev.id;
                 return (
-                  <div key={ev.id} className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                  <div
+                    key={ev.id}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg border px-3 py-2",
+                      isHighlighted && "border-primary bg-primary/5"
+                    )}
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{ev.vendor_name}</p>
                       <p className="text-muted-foreground text-xs">

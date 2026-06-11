@@ -99,7 +99,7 @@ function GroupCard({
 }
 
 const QUICK_ACTIONS = [
-  { href: "/groups", label: "Manage groups", icon: Users },
+  { href: "/subscriptions?addGroup=1", label: "Manage groups", icon: Users },
   { href: "/subscriptions", label: "Add subscription", icon: CreditCard },
   { href: "/documents", label: "Upload receipt", icon: FileText },
   { href: "/reports", label: "View reports", icon: BarChart2 },
@@ -363,24 +363,39 @@ export default function AppHome() {
           </Card>
         </Link>
 
-        <Card className="from-primary/8 to-primary/4 border-primary/20 bg-gradient-to-br">
-          <CardHeader className="flex flex-row items-center justify-between pt-4 pb-1">
-            <CardTitle className="text-primary text-xs font-semibold tracking-wide uppercase">
-              Monthly
-            </CardTitle>
-            <TrendingUp className="text-primary size-4" />
-          </CardHeader>
-          <CardContent className="pb-4">
-            <div className="font-heading text-primary text-3xl font-semibold">
-              {primaryMonthly > 0 ? formatCurrency(primaryMonthly, primaryCurrency) : "—"}
-            </div>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              {primaryYearly > 0
-                ? `${formatCurrency(primaryYearly, primaryCurrency)}/yr`
-                : "no active subs"}
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/subscriptions">
+          <Card className="from-primary/8 to-primary/4 border-primary/20 bg-gradient-to-br transition-shadow hover:shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between pt-4 pb-1">
+              <CardTitle className="text-primary text-xs font-semibold tracking-wide uppercase">
+                Monthly
+              </CardTitle>
+              <TrendingUp className="text-primary size-4" />
+            </CardHeader>
+            <CardContent className="pb-4">
+              {totalsByCurrency.length === 0 ? (
+                <div className="font-heading text-primary text-3xl font-semibold">—</div>
+              ) : (
+                <>
+                  <div className="font-heading text-primary text-3xl font-semibold">
+                    {formatCurrency(totalsByCurrency[0]!.monthly, totalsByCurrency[0]!.currency)}
+                  </div>
+                  {totalsByCurrency.length > 1 && (
+                    <div className="mt-1 flex flex-col gap-0">
+                      {totalsByCurrency.slice(1).map((t) => (
+                        <p key={t.currency} className="text-muted-foreground text-xs tabular-nums">
+                          +{formatCurrency(t.monthly, t.currency)} {t.currency}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    {formatCurrency(totalsByCurrency[0]!.yearly, totalsByCurrency[0]!.currency)}/yr
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
 
         <Link href="/calendar">
           <Card className="hover:bg-accent/30 transition-colors">
@@ -404,7 +419,7 @@ export default function AppHome() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-heading text-lg font-semibold">Your groups</h2>
             <Link
-              href="/groups"
+              href="/subscriptions"
               className={cn(
                 buttonVariants({ variant: "ghost", size: "sm" }),
                 "text-primary text-xs"
@@ -425,7 +440,7 @@ export default function AppHome() {
               />
             ))}
             <Link
-              href="/groups"
+              href="/subscriptions?addGroup=1"
               className="border-border/60 hover:bg-muted/40 flex min-h-[110px] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed transition-colors"
             >
               <span className="bg-accent text-accent-foreground flex size-9 items-center justify-center rounded-xl">
@@ -481,9 +496,10 @@ export default function AppHome() {
                 {upcomingRenewals.slice(0, 8).map((subscription) => {
                   const group = first(subscription.groups);
                   return (
-                    <div
+                    <Link
                       key={subscription.id}
-                      className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm"
+                      href={`/calendar?date=${subscription.renewal_date}&highlight=${subscription.id}`}
+                      className="hover:bg-muted/50 flex items-center justify-between gap-3 rounded-xl px-3 py-1.5 text-sm"
                     >
                       <div className="min-w-0">
                         <p className="truncate font-medium">{subscription.vendor_name}</p>
@@ -497,7 +513,7 @@ export default function AppHome() {
                           {subscription.currency}
                         </span>
                       </p>
-                    </div>
+                    </Link>
                   );
                 })}
                 {upcomingRenewals.length > 8 && (

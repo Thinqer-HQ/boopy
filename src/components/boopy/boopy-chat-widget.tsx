@@ -8,14 +8,16 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  FileText,
   Loader2,
+  Paperclip,
   Plus,
   RotateCcw,
   Send,
   Square,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ChangeEvent } from "react";
 
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { buttonVariants } from "@/components/ui/button";
@@ -142,14 +144,31 @@ const SUGGESTIONS = [
 
 const BOOPY_ICON = "/boopy-assets/boopy-icon.png";
 
+type AttachedFile = {
+  id: string;
+  file: File;
+  status: "queued" | "processing" | "done" | "error";
+  abort?: AbortController;
+  result?: {
+    vendorName?: string;
+    amount?: string;
+    currency?: string;
+    cadence?: string;
+    renewalDate?: string;
+  };
+  error?: string;
+};
+
 // ── chat panel ────────────────────────────────────────────────────────────────
 
 function BoopyAssistantChatPanel({
   chatSessionId,
   onClose,
+  workspaceId,
 }: {
   chatSessionId: string;
   onClose: () => void;
+  workspaceId: string | null;
 }) {
   const { messages, input, setInput, setMessages, append, status, stop, error, reload } = useChat({
     id: chatSessionId,
@@ -173,6 +192,95 @@ function BoopyAssistantChatPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+
+  const processFile = useCallback(
+    async (id: string, file: File) => {
+      if (!workspaceId) {
+        setAttachments((prev) =>
+          prev.map((a) =>
+            a.id === id ? { ...a, status: "error" as const, error: "No workspace" } : a
+          )
+        );
+        return;
+      }
+      const abort = new AbortController();
+      setAttachments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "processing" as const, abort } : a))
+      );
+      const supabase = getSupabaseBrowser();
+      const session = await supabase?.auth.getSession();
+      const token = session?.data.session?.access_token;
+      const form = new FormData();
+      form.append("workspaceId", workspaceId);
+      form.append("file", file);
+      try {
+        const res = await fetch("/api/subscriptions/extract-from-file", {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+          signal: abort.signal,
+        });
+        const payload = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          fields?: AttachedFile["result"];
+        };
+        if (!res.ok || !payload.ok) {
+          setAttachments((prev) =>
+            prev.map((a) =>
+              a.id === id
+                ? { ...a, status: "error" as const, error: payload.error ?? "Failed to read file" }
+                : a
+            )
+          );
+          return;
+        }
+        setAttachments((prev) =>
+          prev.map((a) =>
+            a.id === id ? { ...a, status: "done" as const, result: payload.fields } : a
+          )
+        );
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+        setAttachments((prev) =>
+          prev.map((a) =>
+            a.id === id ? { ...a, status: "error" as const, error: "Upload failed" } : a
+          )
+        );
+      }
+    },
+    [workspaceId]
+  );
+
+  const handleFileChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? []);
+      if (!files.length) return;
+      e.target.value = "";
+      const newAttachments = files.map(
+        (file): AttachedFile => ({
+          id: `${Date.now()}-${Math.random()}`,
+          file,
+          status: "queued",
+        })
+      );
+      setAttachments((prev) => [...prev, ...newAttachments]);
+      for (const a of newAttachments) {
+        void processFile(a.id, a.file);
+      }
+    },
+    [processFile]
+  );
+
+  const removeAttachment = useCallback((id: string) => {
+    setAttachments((prev) => {
+      const a = prev.find((x) => x.id === id);
+      if (a?.status === "processing") a.abort?.abort();
+      return prev.filter((x) => x.id !== id);
+    });
+  }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = scrollRef.current;
@@ -201,18 +309,70 @@ function BoopyAssistantChatPanel({
   const handleSubmit = useCallback(
     (e?: React.FormEvent) => {
       e?.preventDefault();
-      if (!input?.trim() || busy) return;
-      sendMessage(input.trim());
-      setInput("");
+      const hasFiles = attachments.length > 0;
+      if ((!input?.trim() && !hasFiles) || busy) return;
+
+      let text = input?.trim() ?? "";
+      const done = attachments.filter((a) => a.status === "done");
+      const failed = attachments.filter((a) => a.status === "error");
+      const processing = attachments.filter(
+        (a) => a.status === "processing" || a.status === "queued"
+      );
+
+      if (hasFiles) {
+        const parts: string[] = [];
+        if (text) parts.push(text);
+        if (done.length > 0) {
+          parts.push(
+            "I've uploaded receipts for you to process:\n" +
+              done
+                .map((a) => {
+                  const f = a.result;
+                  if (!f) return `- ${a.file.name} (no data extracted)`;
+                  const details = [
+                    f.vendorName && `Vendor: ${f.vendorName}`,
+                    f.amount && f.currency ? `${f.amount} ${f.currency}` : f.amount,
+                    f.cadence && `(${f.cadence})`,
+                    f.renewalDate && `renewal: ${f.renewalDate}`,
+                  ]
+                    .filter(Boolean)
+                    .join(", ");
+                  return `- ${a.file.name}${details ? ` → ${details}` : ""}`;
+                })
+                .join("\n") +
+              "\n\nPlease add these as subscriptions if they look correct."
+          );
+        }
+        if (failed.length > 0) {
+          parts.push(
+            "The following files couldn't be read:\n" +
+              failed.map((a) => `- ${a.file.name}: ${a.error ?? "unknown error"}`).join("\n")
+          );
+        }
+        if (processing.length > 0) {
+          parts.push("(Some files are still uploading and will need to be re-attached.)");
+        }
+        text = parts.join("\n\n");
+        setAttachments([]);
+      }
+
+      if (text) {
+        sendMessage(text);
+        setInput("");
+      }
     },
-    [input, busy, sendMessage, setInput]
+    [input, busy, sendMessage, setInput, attachments]
   );
 
   const startNewChat = useCallback(() => {
+    attachments.forEach((a) => {
+      if (a.status === "processing") a.abort?.abort();
+    });
+    setAttachments([]);
     setMessages([]);
     setInput("");
     setView("home");
-  }, [setMessages, setInput]);
+  }, [setMessages, setInput, attachments]);
 
   return (
     <div className="flex h-full flex-col">
@@ -410,7 +570,58 @@ function BoopyAssistantChatPanel({
 
       {/* ── Input bar ── */}
       <form className="shrink-0 border-t p-2.5" onSubmit={handleSubmit}>
+        {/* File chips */}
+        {attachments.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {attachments.map((a) => (
+              <div
+                key={a.id}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs",
+                  a.status === "done" && "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  a.status === "processing" && "border-blue-200 bg-blue-50 text-blue-700",
+                  a.status === "queued" && "text-muted-foreground border bg-white",
+                  a.status === "error" && "border-red-200 bg-red-50 text-red-700"
+                )}
+              >
+                {a.status === "processing" ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : a.status === "done" ? (
+                  <Check className="size-3" strokeWidth={3} />
+                ) : (
+                  <FileText className="size-3" />
+                )}
+                <span className="max-w-[90px] truncate">{a.file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(a.id)}
+                  className="ml-0.5 opacity-60 hover:opacity-100"
+                  aria-label="Remove"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="bg-muted/50 flex items-end gap-2 rounded-xl px-3 py-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.csv,.txt"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-muted-foreground hover:text-foreground mb-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-black/5"
+            aria-label="Attach files"
+            title="Attach receipts or documents"
+          >
+            <Paperclip className="size-4" />
+          </button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -436,7 +647,7 @@ function BoopyAssistantChatPanel({
           ) : (
             <button
               type="submit"
-              disabled={!input?.trim()}
+              disabled={!input?.trim() && attachments.length === 0}
               className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-lg transition-opacity disabled:opacity-40"
               aria-label="Send"
             >
@@ -484,6 +695,7 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
               <BoopyAssistantChatPanel
                 chatSessionId={chatSessionId}
                 onClose={() => setOpen(false)}
+                workspaceId={workspaceId}
               />
             ) : (
               /* ── Upsell panel ── */

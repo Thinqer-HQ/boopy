@@ -603,6 +603,103 @@ img {
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* ── Pricing toggle ──────────────────────────────────────────── */
+.pricing-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--surface-raised);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  padding: 0.25rem;
+  margin-bottom: 2rem;
+}
+
+.pricing-toggle-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    color 0.18s;
+}
+
+.pricing-toggle-pill.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+.pricing-toggle-badge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+
+.pricing-toggle-pill:not(.active) .pricing-toggle-badge {
+  background: var(--brand-light);
+  color: var(--brand);
+}
+
+/* Strikethrough original price */
+.pricing-price-current {
+  font-family: var(--font-fredoka, "Fredoka", sans-serif);
+}
+.pricing-price-period {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.7;
+  letter-spacing: 0;
+}
+.pricing-price-was {
+  font-family: var(--font-fredoka, "Fredoka", sans-serif);
+  font-size: 1.15rem;
+  text-decoration: line-through;
+  opacity: 0.45;
+  margin-left: 0.5rem;
+}
+.pricing-price-was::before {
+  content: "$";
+}
+
+/* Trial badge */
+.pricing-trial-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.7rem;
+  border-radius: var(--radius-full);
+  margin-bottom: 0.6rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Cancel note below CTA */
+.pricing-cancel-note {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.65rem;
+  text-align: center;
+}
+
+/* ──────────────────────────────────────────────────────────────── */
+
 .pricing-card h3 {
   font-family: var(--font-fredoka, "Fredoka", sans-serif);
   font-size: clamp(2.2rem, 5vw, 2.8rem);

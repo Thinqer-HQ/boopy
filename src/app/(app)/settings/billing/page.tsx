@@ -250,50 +250,88 @@ export default function BillingSettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          className={
+            billing.plan === "pro"
+              ? undefined
+              : "from-primary/5 border-primary/20 bg-gradient-to-br to-transparent"
+          }
+        >
           <CardHeader>
-            <CardTitle>Boopy Pro</CardTitle>
-            <CardDescription>
-              Unlimited clients and subscriptions, push reminders, and the in-app Boopy Assistant
-              that can act on your workspace (powered by the Vercel AI SDK and your configured model
-              provider).
-            </CardDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle>Boopy Pro</CardTitle>
+                <CardDescription className="mt-1">
+                  Unlimited subscriptions &amp; groups, push reminders, multi-currency tracking, and
+                  the in-app Boopy AI Assistant.
+                </CardDescription>
+              </div>
+              {billing.plan !== "pro" && (
+                <span className="bg-primary/10 text-primary shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold">
+                  7-day free trial
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-2xl font-semibold">$19/mo</p>
-            <p className="text-muted-foreground text-sm">
-              Upgrade securely with Stripe. You can change/cancel from Stripe customer tools later.
-            </p>
+            <div className="flex items-baseline gap-2">
+              <span className="font-heading text-3xl font-bold">$19</span>
+              <span className="text-muted-foreground text-sm">/mo</span>
+              <span className="text-muted-foreground text-sm line-through">$29</span>
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                34% off
+              </span>
+            </div>
             {billing.plan !== "pro" ? (
-              <div className="space-y-2">
-                <Label htmlFor="promotion-code">Coupon or promo code (optional)</Label>
-                <Input
-                  id="promotion-code"
-                  autoComplete="off"
-                  placeholder="e.g. LAUNCH2026"
-                  value={promotionCode}
-                  onChange={(e) => setPromotionCode(e.target.value)}
-                  disabled={loadingCheckout}
-                />
-                <p className="text-muted-foreground text-xs">
-                  If you leave this blank, you can still enter a code on the Stripe checkout page
-                  when available.
+              <>
+                <p className="text-muted-foreground text-sm">
+                  Try free for 7 days — no credit card needed during trial. Cancel anytime.
                 </p>
-              </div>
-            ) : null}
-            <Button
-              disabled={loadingCheckout || billing.plan === "pro"}
-              onClick={() => void startCheckout()}
-            >
-              {billing.plan === "pro"
-                ? "You are on Pro"
-                : loadingCheckout
-                  ? "Opening checkout…"
-                  : "Upgrade to Pro"}
-            </Button>
-            <Button variant="outline" disabled={loadingPortal} onClick={() => void openPortal()}>
-              {loadingPortal ? "Opening portal…" : "Manage billing in Stripe"}
-            </Button>
+                <div className="space-y-2">
+                  <Label htmlFor="promotion-code">Coupon or promo code (optional)</Label>
+                  <Input
+                    id="promotion-code"
+                    autoComplete="off"
+                    placeholder="e.g. LAUNCH2026"
+                    value={promotionCode}
+                    onChange={(e) => setPromotionCode(e.target.value)}
+                    disabled={loadingCheckout}
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    You can also enter a code on the Stripe checkout page.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                You&apos;re on Pro. Manage your subscription below.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={loadingCheckout || billing.plan === "pro"}
+                onClick={() => void startCheckout()}
+              >
+                {billing.plan === "pro"
+                  ? "Already on Pro"
+                  : loadingCheckout
+                    ? "Opening checkout…"
+                    : "Start free trial"}
+              </Button>
+              <Button variant="outline" disabled={loadingPortal} onClick={() => void openPortal()}>
+                {loadingPortal
+                  ? "Opening portal…"
+                  : billing.plan === "pro"
+                    ? "Manage / Cancel"
+                    : "Manage billing"}
+              </Button>
+            </div>
+            {billing.plan === "pro" && (
+              <p className="text-muted-foreground text-xs">
+                Use &ldquo;Manage / Cancel&rdquo; to update payment details or cancel your
+                subscription via the Stripe portal.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

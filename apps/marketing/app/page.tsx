@@ -1,4 +1,5 @@
 import { getMarketingContent } from "@/lib/payload";
+import { PricingSection } from "./pricing-section";
 
 export const dynamic = "force-dynamic";
 
@@ -228,56 +229,10 @@ export default async function MarketingHomePage() {
               <h2 className="section-title" style={{ margin: "0 auto 0.5rem" }}>
                 Simple, honest pricing
               </h2>
-              <p className="section-subtitle" style={{ margin: "0 auto" }}>
+              <p className="section-subtitle" style={{ margin: "0 auto 2rem" }}>
                 Start free. Upgrade when you need more.
               </p>
-              <div className="pricing-grid">
-                <div className="panel pricing-card">
-                  <span className="price-tier">{content.pricing.free.label}</span>
-                  <h3>{content.pricing.free.price}</h3>
-                  <p className="muted">{content.pricing.free.description}</p>
-                  <ul className="feature-list">
-                    {content.pricing.free.features.map((feature) => (
-                      <li key={`free-${feature}`}>
-                        <span className="check-icon">
-                          <CheckIcon />
-                        </span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <a
-                    className="btn btn-ghost"
-                    href={appUrl}
-                    style={{ width: "100%", justifyContent: "center" }}
-                  >
-                    {content.pricing.free.ctaLabel}
-                  </a>
-                </div>
-                <div className="panel pricing-card pricing-card-featured">
-                  <span className="pricing-badge">Most Popular</span>
-                  <span className="price-tier">{content.pricing.pro.label}</span>
-                  <h3>{content.pricing.pro.price}/mo</h3>
-                  <p className="muted">{content.pricing.pro.description}</p>
-                  <ul className="feature-list">
-                    {content.pricing.pro.features.map((feature) => (
-                      <li key={`pro-${feature}`}>
-                        <span className="check-icon">
-                          <CheckIcon />
-                        </span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  <a
-                    className="btn btn-primary"
-                    href={upgradeUrl}
-                    style={{ width: "100%", justifyContent: "center" }}
-                  >
-                    {content.pricing.pro.ctaLabel}
-                  </a>
-                </div>
-              </div>
+              <PricingSection appUrl={appUrl} upgradeUrl={upgradeUrl} />
             </div>
           </section>
 

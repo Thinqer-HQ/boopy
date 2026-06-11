@@ -94,6 +94,7 @@ export default function SubscriptionsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const focusGroupId = searchParams.get("group");
+  const addGroupParam = searchParams.get("addGroup");
   const { state } = usePrimaryWorkspace();
 
   const [view, setView] = useState<"groups" | "list">("groups");
@@ -188,6 +189,13 @@ export default function SubscriptionsPage() {
     }, 200);
     return () => clearTimeout(t);
   }, [focusGroupId, groups]);
+
+  // Open add-group dialog from URL param
+  useEffect(() => {
+    if (addGroupParam !== "1") return;
+    setManageOpen(true);
+    setAddGroupOpen(true);
+  }, [addGroupParam]);
 
   const colorMap = useMemo(() => {
     const m = new Map<string, string>();
