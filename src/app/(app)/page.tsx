@@ -6,8 +6,8 @@ import {
   Bell,
   Calendar as CalendarIcon,
   CreditCard,
-  DollarSign,
   FileText,
+  Inbox,
   Plus,
   Sparkles,
   TrendingUp,
@@ -111,6 +111,7 @@ export default function AppHome() {
   const [groups, setGroups] = useState<GroupRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDrafts, setPendingDrafts] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -120,7 +121,7 @@ export default function AppHome() {
 
       setError(null);
 
-      const [groupsResult, subscriptionsResult] = await Promise.all([
+      const [groupsResult, subscriptionsResult, draftsResult] = await Promise.all([
         supabase.from("groups").select("id, name").eq("workspace_id", state.workspaceId),
         supabase
           .from("subscriptions")
@@ -129,6 +130,11 @@ export default function AppHome() {
           )
           .eq("groups.workspace_id", state.workspaceId)
           .order("renewal_date", { ascending: true }),
+        supabase
+          .from("subscription_drafts")
+          .select("id", { count: "exact", head: true })
+          .eq("workspace_id", state.workspaceId)
+          .eq("status", "pending"),
       ]);
 
       if (groupsResult.error) {
@@ -142,6 +148,7 @@ export default function AppHome() {
 
       setGroups((groupsResult.data ?? []) as GroupRow[]);
       setSubscriptions((subscriptionsResult.data ?? []) as SubscriptionRow[]);
+      setPendingDrafts(draftsResult.count ?? 0);
     }
 
     queueMicrotask(() => {
@@ -569,6 +576,28 @@ export default function AppHome() {
           </CardContent>
         </Card>
       </div>
+      {/* ── Drive inbox ── */}
+      {pendingDrafts > 0 && (
+        <Link href="/notifications">
+          <Card className="border-amber-200 bg-amber-50/60 transition-shadow hover:shadow-md dark:border-amber-800/40 dark:bg-amber-900/10">
+            <CardContent className="flex items-center gap-4 py-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400">
+                <Inbox className="size-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-amber-800 dark:text-amber-300">
+                  {pendingDrafts} receipt{pendingDrafts !== 1 ? "s" : ""} waiting in inbox
+                </p>
+                <p className="mt-0.5 text-xs text-amber-700/70 dark:text-amber-400/70">
+                  Boopy found new files in your Google Drive. Review and confirm them.
+                </p>
+              </div>
+              <ArrowRight className="size-4 shrink-0 text-amber-500" />
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {/* ── Savings mode ── */}
       {pausedCount > 0 && (
         <Card>

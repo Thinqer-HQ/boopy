@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { getSupabaseBrowser, isSupabaseBrowserConfigured } from "@/lib/supabase/browser";
 
 export type WorkspaceState =
   | { status: "loading" }
   | { status: "not_configured" }
+  | { status: "not_authenticated" }
   | { status: "error"; message: string }
   | { status: "schema_not_ready"; details: string }
   | { status: "ready"; workspaceId: string }
@@ -22,6 +24,7 @@ function isMissingWorkspaceTable(message: string | undefined) {
 
 export function usePrimaryWorkspace() {
   const [state, setState] = useState<WorkspaceState>({ status: "loading" });
+  const router = useRouter();
 
   const load = useCallback(async () => {
     if (!isSupabaseBrowserConfigured()) {
@@ -38,7 +41,8 @@ export function usePrimaryWorkspace() {
       data: { session },
     } = await supabase.auth.getSession();
     if (!session?.user) {
-      setState({ status: "error", message: "Not signed in." });
+      setState({ status: "not_authenticated" });
+      router.replace("/login");
       return;
     }
 

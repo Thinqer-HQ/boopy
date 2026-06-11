@@ -5,11 +5,14 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  FolderOpen,
+  HardDriveDownload,
   Loader2,
   Mail,
   RefreshCw,
   Settings,
   Smartphone,
+  Unplug,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -364,6 +367,141 @@ export default function NotificationsPage() {
       return;
     }
     setSettingsMsg("Send-test succeeded.");
+  }
+
+  // ── Google Drive state ──
+  const [driveStatus, setDriveStatus] = useState<{
+    connected: boolean;
+    rootFolderName: string;
+    lastSyncedAt: string | null;
+    enabled: boolean;
+    pendingDrafts: number;
+  } | null>(null);
+  const [driveRootName, setDriveRootName] = useState("Boopy");
+  const [driveSyncing, setDriveSyncing] = useState(false);
+  const [driveDisconnecting, setDriveDisconnecting] = useState(false);
+
+  const loadDriveStatus = useCallback(async () => {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const res = await fetch(
+      `/api/integrations/google-drive/status?workspaceId=${state.workspaceId}`,
+      { headers: { Authorization: `Bearer ${session.access_token}` } }
+    );
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      connected: boolean;
+      rootFolderName: string;
+      lastSyncedAt: string | null;
+      enabled: boolean;
+      pendingDrafts: number;
+    };
+    setDriveStatus(data);
+    if (data.rootFolderName) setDriveRootName(data.rootFolderName);
+  }, [state]);
+
+  useEffect(() => {
+    const drive = searchParams.get("drive");
+    if (drive === "connected") {
+      setSettingsMsg("Google Drive connected.");
+      setSettingsOpen(true);
+    } else if (drive === "error") {
+      setSettingsErr("Google Drive connection failed. Try again.");
+      setSettingsOpen(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    void loadDriveStatus();
+  }, [loadDriveStatus]);
+
+  async function connectGoogleDrive() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    const res = await fetch(
+      `/api/integrations/google-drive/start?workspaceId=${state.workspaceId}&redirectTo=/notifications`,
+      { headers: { Authorization: `Bearer ${session.access_token}` } }
+    );
+    const p = (await res.json().catch(() => ({}))) as { error?: string; url?: string };
+    if (!res.ok || !p.url) {
+      setSettingsErr(p.error ?? "Failed to start Google Drive connect.");
+      return;
+    }
+    window.location.href = p.url;
+  }
+
+  async function syncDrive() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    setDriveSyncing(true);
+    setSettingsMsg(null);
+    setSettingsErr(null);
+    const res = await fetch("/api/integrations/google-drive/scan", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ workspaceId: state.workspaceId }),
+    });
+    setDriveSyncing(false);
+    const p = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      created?: number;
+      drafted?: number;
+    };
+    if (!res.ok) {
+      setSettingsErr(p.error ?? "Drive sync failed.");
+      return;
+    }
+    const created = p.created ?? 0;
+    const drafted = p.drafted ?? 0;
+    setSettingsMsg(
+      created + drafted === 0
+        ? "Drive sync complete — no new files found."
+        : `Drive sync complete. ${created} subscription${created !== 1 ? "s" : ""} added, ${drafted} pending review.`
+    );
+    void loadDriveStatus();
+  }
+
+  async function disconnectDrive() {
+    if (state.status !== "ready") return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    setDriveDisconnecting(true);
+    const res = await fetch(
+      `/api/integrations/google-drive/disconnect?workspaceId=${state.workspaceId}`,
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }
+    );
+    setDriveDisconnecting(false);
+    if (!res.ok) {
+      setSettingsErr("Failed to disconnect Google Drive.");
+      return;
+    }
+    setDriveStatus(null);
+    setSettingsMsg("Google Drive disconnected.");
   }
 
   async function connectGoogleCalendar() {
@@ -733,6 +871,103 @@ export default function NotificationsPage() {
                   Re-sync events
                 </Button>
               </div>
+            </div>
+
+            {/* Google Drive */}
+            <div className="mt-4 border-t pt-4">
+              <div className="mb-1 flex items-center gap-2">
+                <HardDriveDownload className="text-muted-foreground size-3.5" />
+                <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                  Google Drive
+                </p>
+                {driveStatus?.connected && (
+                  <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                    Connected
+                  </span>
+                )}
+              </div>
+              <p className="text-muted-foreground mb-3 text-xs">
+                Boopy watches a Drive folder for invoices and receipts and auto-imports
+                subscriptions. Name subfolders after your groups for automatic routing.
+              </p>
+
+              {driveStatus?.connected ? (
+                <div className="space-y-3">
+                  <div className="grid gap-1">
+                    <Label
+                      htmlFor="drive-folder"
+                      className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+                    >
+                      Root folder name
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="text-muted-foreground size-3.5 shrink-0" />
+                      <input
+                        id="drive-folder"
+                        type="text"
+                        value={driveRootName}
+                        onChange={(e) => setDriveRootName(e.target.value)}
+                        className="border-input bg-background h-8 flex-1 rounded-md border px-2 text-sm"
+                        placeholder="Boopy"
+                      />
+                    </div>
+                    <p className="text-muted-foreground text-xs">
+                      Create this folder in your Drive root. Subfolders matching group names are
+                      auto-routed.
+                      {(driveStatus?.pendingDrafts ?? 0) > 0 && (
+                        <span className="ml-1 font-medium text-amber-600">
+                          {driveStatus?.pendingDrafts} receipt
+                          {driveStatus!.pendingDrafts !== 1 ? "s" : ""} waiting in inbox.
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  {driveStatus?.lastSyncedAt && (
+                    <p className="text-muted-foreground text-xs">
+                      Last synced:{" "}
+                      {new Date(driveStatus.lastSyncedAt).toLocaleString(undefined, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={driveSyncing}
+                      onClick={() => void syncDrive()}
+                    >
+                      {driveSyncing ? (
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-1.5 size-3.5" />
+                      )}
+                      {driveSyncing ? "Syncing…" : "Sync now"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      disabled={driveDisconnecting}
+                      onClick={() => void disconnectDrive()}
+                    >
+                      {driveDisconnecting ? (
+                        <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                      ) : (
+                        <Unplug className="mr-1.5 size-3.5" />
+                      )}
+                      Disconnect
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => void connectGoogleDrive()}>
+                  Connect Google Drive
+                </Button>
+              )}
             </div>
           </div>
         )}

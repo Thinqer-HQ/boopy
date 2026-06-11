@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { syncWorkspaceCalendar } from "@/lib/calendar/sync";
+import { scanDriveForWorkspace } from "@/lib/drive/scan";
 import { getEnv } from "@/lib/env";
 import { log } from "@/lib/log";
 import { sendRenewalDigestEmail } from "@/lib/notifications/email";
@@ -680,6 +681,27 @@ export async function GET(request: Request) {
     });
   }
 
+  const { data: driveWorkspaceRows } = await supabase
+    .from("drive_integrations")
+    .select("workspace_id")
+    .eq("enabled", true);
+  const driveWorkspaceIds = (driveWorkspaceRows ?? []).map((row) => row.workspace_id as string);
+  let driveSynced = 0;
+
+  for (const workspaceId of driveWorkspaceIds) {
+    await scanDriveForWorkspace(workspaceId)
+      .then(() => {
+        driveSynced += 1;
+      })
+      .catch((driveError) => {
+        log.warn("drive_sync_skipped", {
+          runId,
+          workspaceId,
+          error: driveError instanceof Error ? driveError.message : "unknown",
+        });
+      });
+  }
+
   return NextResponse.json({
     ok: true,
     runId,
@@ -691,5 +713,6 @@ export async function GET(request: Request) {
     sent,
     failed,
     retried,
+    driveSynced,
   });
 }

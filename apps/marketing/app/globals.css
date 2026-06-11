@@ -613,6 +613,7 @@ img {
   border-radius: var(--radius-full);
   padding: 0.25rem;
   margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(109, 93, 246, 0.08);
 }
 
 .pricing-toggle-pill {
@@ -622,19 +623,36 @@ img {
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--muted);
-  padding: 0.35rem 0.9rem;
+  padding: 0.4rem 1.1rem;
   border-radius: var(--radius-full);
   border: none;
   background: transparent;
   cursor: pointer;
   transition:
-    background 0.18s,
-    color 0.18s;
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.pricing-toggle-pill:not(.active):hover {
+  color: var(--text);
+  background: rgba(109, 93, 246, 0.06);
 }
 
 .pricing-toggle-pill.active {
   background: var(--brand);
   color: #fff;
+  box-shadow: 0 4px 14px rgba(109, 93, 246, 0.38);
+}
+
+/* Annual pill — subtle glow when inactive to draw the eye */
+.pricing-toggle-pill-annual:not(.active) {
+  color: var(--brand);
+}
+
+.pricing-toggle-pill-annual:not(.active):hover {
+  background: var(--brand-light);
+  color: var(--brand);
 }
 
 .pricing-toggle-badge {
