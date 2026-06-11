@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
+import { GoogleIntegrationButtons } from "@/components/boopy/google-integration-buttons";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -575,6 +576,8 @@ export default function AppHome() {
                 <ArrowRight className="size-4 opacity-40" />
               </Link>
             ))}
+            <div className="border-border my-0.5 border-t" />
+            <GoogleIntegrationButtons layout="stack" />
           </CardContent>
         </Card>
       </div>

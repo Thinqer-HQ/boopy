@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { GoogleIntegrationButtons } from "@/components/boopy/google-integration-buttons";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -679,6 +680,9 @@ export default function SubscriptionsPage() {
           </span>
         </div>
       )}
+
+      {/* ── Google integrations ── */}
+      <GoogleIntegrationButtons layout="row" />
 
       {/* ── Search ── */}
       <div className="relative max-w-sm">
