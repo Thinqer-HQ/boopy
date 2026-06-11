@@ -74,7 +74,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
       <div className="pricing-toggle-wrap">
         <button
           type="button"
-          className={`pricing-toggle-pill${!isAnnual ? "active" : ""}`}
+          className={"pricing-toggle-pill" + (!isAnnual ? " active" : "")}
           onClick={() => toggleBilling(false)}
         >
           Monthly
@@ -82,7 +82,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
         <button
           ref={switchRef}
           type="button"
-          className={`pricing-toggle-pill pricing-toggle-pill-annual${isAnnual ? "active" : ""}`}
+          className={"pricing-toggle-pill pricing-toggle-pill-annual" + (isAnnual ? " active" : "")}
           onClick={() => toggleBilling(true)}
         >
           Annual

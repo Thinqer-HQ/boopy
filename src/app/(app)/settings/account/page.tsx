@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, Loader2, Scale, ShieldCheck, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -199,6 +199,47 @@ export default function AccountPrivacyPage() {
             <Trash2 className="mr-1.5 size-3.5" />
             Delete my account
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Legal documents */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Scale className="size-4" />
+            Legal documents
+          </CardTitle>
+          <CardDescription>
+            Read our policies to understand how we collect, use, and protect your data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <a
+            href="https://useboopy.com/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary text-sm hover:underline"
+          >
+            Privacy Policy
+          </a>
+          <span className="text-muted-foreground text-sm">·</span>
+          <a
+            href="https://useboopy.com/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary text-sm hover:underline"
+          >
+            Terms of Service
+          </a>
+          <span className="text-muted-foreground text-sm">·</span>
+          <a
+            href="https://useboopy.com/cookies"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary text-sm hover:underline"
+          >
+            Cookie Policy
+          </a>
         </CardContent>
       </Card>
 

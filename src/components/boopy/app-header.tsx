@@ -6,6 +6,7 @@ import {
   CreditCard,
   LogOut,
   Menu,
+  Scale,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
@@ -317,6 +318,33 @@ export function AppHeader({ className }: { className?: string }) {
               <ShieldCheck className="size-4" />
               Account & Privacy
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">
+                Legal
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => window.open("https://useboopy.com/privacy", "_blank")}
+              >
+                <Scale className="size-4" />
+                Privacy Policy
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => window.open("https://useboopy.com/terms", "_blank")}
+              >
+                <Scale className="size-4" />
+                Terms of Service
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2"
+                onClick={() => window.open("https://useboopy.com/cookies", "_blank")}
+              >
+                <Scale className="size-4" />
+                Cookie Policy
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
