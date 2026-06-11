@@ -285,7 +285,8 @@ export default function BillingSettingsPage() {
             {billing.plan !== "pro" ? (
               <>
                 <p className="text-muted-foreground text-sm">
-                  Try free for 7 days — no credit card needed during trial. Cancel anytime.
+                  7-day free trial — card required, cancel anytime. 15-day money-back guarantee
+                  after trial ends.
                 </p>
                 <div className="space-y-2">
                   <Label htmlFor="promotion-code">Coupon or promo code (optional)</Label>

@@ -1,4 +1,5 @@
 import { getMarketingContent } from "@/lib/payload";
+import { ChatWidget } from "./chat-widget";
 import { PricingSection } from "./pricing-section";
 
 export const dynamic = "force-dynamic";
@@ -308,6 +309,7 @@ export default async function MarketingHomePage() {
           </div>
         </footer>
       </div>
+      <ChatWidget />
     </div>
   );
 }

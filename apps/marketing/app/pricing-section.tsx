@@ -147,7 +147,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
           >
             Start free trial
           </a>
-          <p className="pricing-cancel-note">No credit card during trial · Cancel anytime</p>
+          <p className="pricing-cancel-note">Cancel anytime · 15-day money-back guarantee</p>
         </div>
       </div>
     </>
