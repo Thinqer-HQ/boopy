@@ -26,7 +26,7 @@ const CheckIcon = () => (
 
 export default async function MarketingHomePage() {
   const content = await getMarketingContent();
-  const appUrl = "https://hey.useboopy.com";
+  const appUrl = "https://www.useboopy.com";
   const upgradeUrl =
     process.env.NEXT_PUBLIC_PADDLE_CHECKOUT_URL?.trim() || `${appUrl}/settings/billing`;
   const visibleFaqs = content.faqs.filter(

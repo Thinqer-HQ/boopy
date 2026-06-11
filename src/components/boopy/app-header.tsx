@@ -325,21 +325,21 @@ export function AppHeader({ className }: { className?: string }) {
               </DropdownMenuLabel>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://useboopy.com/privacy", "_blank")}
+                onClick={() => window.open("https://hey.useboopy.com/privacy", "_blank")}
               >
                 <Scale className="size-4" />
                 Privacy Policy
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://useboopy.com/terms", "_blank")}
+                onClick={() => window.open("https://hey.useboopy.com/terms", "_blank")}
               >
                 <Scale className="size-4" />
                 Terms of Service
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://useboopy.com/cookies", "_blank")}
+                onClick={() => window.open("https://hey.useboopy.com/cookies", "_blank")}
               >
                 <Scale className="size-4" />
                 Cookie Policy
