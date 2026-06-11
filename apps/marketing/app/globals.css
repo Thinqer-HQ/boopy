@@ -5,7 +5,7 @@
 ═══════════════════════════════════════════════════════════════ */
 
 :root {
-  color-scheme: light;
+  color-scheme: light only;
 
   /* Brand */
   --brand: #6d5df6;
@@ -98,7 +98,7 @@ img {
   overflow-x: clip;
 }
 
-/* ── Hero glow — replaces the old pixelated grid ────────────── */
+/* ── Hero ambient glow — clean soft radial, no grid ─────────── */
 .hero-glow {
   position: absolute;
   top: -120px;
