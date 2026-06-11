@@ -23,7 +23,7 @@ export default async function MarketingHomePage() {
   return (
     <div className="site-shell theme-mono">
       <BoopySidePresence />
-      <div className="bg-grid" />
+      <div className="hero-glow" aria-hidden="true" />
       <header className="header">
         <div className="header-inner container">
           <div className="brand-wrap">
@@ -170,6 +170,7 @@ export default async function MarketingHomePage() {
               </a>
             </div>
             <div className="panel pricing-card pricing-card-featured">
+              <span className="pricing-badge">Most Popular</span>
               <span className="price-tier">{content.pricing.pro.label}</span>
               <h3>{content.pricing.pro.price}/mo</h3>
               <p className="muted">{content.pricing.pro.description}</p>

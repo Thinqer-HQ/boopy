@@ -98,17 +98,35 @@ img {
   overflow-x: clip;
 }
 
-/* ── Background Grid ────────────────────────────────────────── */
-.bg-grid {
+/* ── Hero glow — replaces the old pixelated grid ────────────── */
+.hero-glow {
   position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(109, 93, 246, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(109, 93, 246, 0.06) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: radial-gradient(ellipse 90% 55% at 50% 0%, black 20%, transparent 100%);
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(900px, 120vw);
+  height: 560px;
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 0%,
+    rgba(109, 93, 246, 0.14) 0%,
+    rgba(109, 93, 246, 0.06) 45%,
+    transparent 75%
+  );
   pointer-events: none;
   z-index: 0;
+}
+
+.hero-glow::after {
+  content: "";
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(109, 93, 246, 0.1) 0%, transparent 70%);
+  filter: blur(40px);
+  border-radius: 50%;
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
@@ -358,12 +376,31 @@ img {
     box-shadow 0.22s ease,
     border-color 0.22s ease;
   box-shadow: var(--shadow-sm);
+  position: relative;
 }
 
 .panel:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-hover);
   border-color: var(--border-mid);
+}
+
+/* Pricing "most popular" badge */
+.pricing-badge {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.22rem 0.75rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(109, 93, 246, 0.38);
 }
 
 /* Hero visual panel */
@@ -821,21 +858,19 @@ img {
     max-width: 100%;
   }
 
+  /* Keep header as single row on mobile — hide text links, show only brand + CTA */
   .header-inner {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 0.65rem 0;
-    min-height: auto;
-    gap: 0.5rem;
+    min-height: 56px;
+    padding: 0;
+    gap: 0.75rem;
   }
 
-  .nav-actions {
-    width: 100%;
-    flex-wrap: wrap;
+  .nav-actions .btn-ghost {
+    display: none;
   }
 
-  .brand-wrap {
-    gap: 0.5rem;
+  .brand-copy {
+    display: none;
   }
 
   .cta-row {
