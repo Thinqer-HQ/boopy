@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Upload } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -37,6 +37,7 @@ type CandidateRow = {
 };
 
 const STALE_MS = 3 * 60 * 1000;
+const MAX_PARSE_RETRIES = 3;
 
 function isStaleInFlight(doc: DocumentRow) {
   if (doc.parse_status !== "pending" && doc.parse_status !== "processing") return false;
@@ -57,6 +58,10 @@ export default function DocumentsPage() {
   const [busy, setBusy] = useState(false);
   const [processingLabel, setProcessingLabel] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Per-document retry tracking: id → current attempt (1-3 while running, 0 idle)
+  const [retryingDoc, setRetryingDoc] = useState<{ id: string; attempt: number } | null>(null);
+  // Documents that exhausted all 3 retries without success
+  const [permFailed, setPermFailed] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const staleDocuments = documents.filter(isStaleInFlight);
 
@@ -232,20 +237,46 @@ export default function DocumentsPage() {
     if (state.status !== "ready") return;
     const headers = await getAuthHeader();
     if (!headers) return;
-    setBusy(true);
-    setProcessingLabel("Retrying…");
-    const res = await fetch("/api/documents/parse", {
-      method: "POST",
-      headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId: state.workspaceId, documentId }),
+
+    setPermFailed((prev) => {
+      const next = new Set(prev);
+      next.delete(documentId);
+      return next;
     });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    setBusy(false);
-    if (!res.ok) {
-      setError(json.error ?? "Retry failed.");
-      return;
+
+    let succeeded = false;
+    for (let attempt = 1; attempt <= MAX_PARSE_RETRIES; attempt++) {
+      setRetryingDoc({ id: documentId, attempt });
+      const res = await fetch("/api/documents/parse", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: state.workspaceId, documentId }),
+      });
+      if (res.ok) {
+        succeeded = true;
+        break;
+      }
+      if (attempt < MAX_PARSE_RETRIES) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 1200));
+      }
     }
-    setMessage("Parse retried.");
+
+    setRetryingDoc(null);
+    if (!succeeded) {
+      setPermFailed((prev) => new Set([...prev, documentId]));
+    }
+    await load();
+  }
+
+  async function cancelDocument(documentId: string) {
+    if (state.status !== "ready") return;
+    const headers = await getAuthHeader();
+    if (!headers) return;
+    await fetch("/api/documents/parse", {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId: state.workspaceId, documentId, action: "cancel" }),
+    });
     await load();
   }
 
@@ -435,37 +466,65 @@ export default function DocumentsPage() {
               >
                 <span className="flex-1 truncate text-sm">{doc.original_filename}</span>
                 {doc.parse_status === "processing" || doc.parse_status === "pending" ? (
-                  <span className="flex items-center gap-1 text-xs text-amber-600">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Processing
-                  </span>
+                  <>
+                    {retryingDoc?.id === doc.id ? (
+                      <span className="flex items-center gap-1 text-xs text-amber-600">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Trying ({retryingDoc.attempt}/{MAX_PARSE_RETRIES})…
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-amber-600">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Processing
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-destructive flex items-center gap-0.5 rounded px-1 text-xs transition-colors"
+                      title="Cancel"
+                      onClick={() => void cancelDocument(doc.id)}
+                    >
+                      <X className="size-3.5" />
+                      Cancel
+                    </button>
+                  </>
                 ) : doc.parse_status === "parsed" ? (
                   <span className="flex items-center gap-1 text-xs text-emerald-600">
                     <CheckCircle2 className="size-3.5" />
                     Done
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-xs text-red-600">
-                    <AlertTriangle className="size-3.5" />
-                    Failed
-                  </span>
-                )}
-                {(doc.parse_status === "failed" || stale) && (
-                  <button
-                    className="text-primary flex items-center gap-1 text-xs hover:underline"
-                    onClick={() => void retryParse(doc.id)}
-                  >
-                    <RefreshCw className="size-3" />
-                    {stale ? "Retry (stuck)" : "Retry"}
-                  </button>
-                )}
-                {doc.parse_status === "failed" && doc.parse_error && (
-                  <span
-                    className="text-muted-foreground max-w-[180px] truncate text-xs"
-                    title={doc.parse_error}
-                  >
-                    {doc.parse_error}
-                  </span>
+                  <>
+                    {permFailed.has(doc.id) ? (
+                      <span className="flex items-center gap-1 text-xs text-red-600">
+                        <AlertTriangle className="size-3.5" />
+                        Failed · {MAX_PARSE_RETRIES} tries
+                      </span>
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-1 text-xs text-red-600">
+                          <AlertTriangle className="size-3.5" />
+                          Failed
+                        </span>
+                        <button
+                          type="button"
+                          className="text-primary flex items-center gap-1 text-xs hover:underline"
+                          onClick={() => void retryParse(doc.id)}
+                        >
+                          <RefreshCw className="size-3" />
+                          {stale ? "Retry (stuck)" : "Retry"}
+                        </button>
+                      </>
+                    )}
+                    {doc.parse_error && doc.parse_error !== "Cancelled by user" && (
+                      <span
+                        className="text-muted-foreground max-w-[180px] truncate text-xs"
+                        title={doc.parse_error}
+                      >
+                        {doc.parse_error}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             );

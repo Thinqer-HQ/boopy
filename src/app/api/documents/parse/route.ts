@@ -17,7 +17,8 @@ type ParseBody = {
 type CandidateDecisionBody = {
   workspaceId?: string;
   candidateId?: string;
-  action?: "confirm" | "reject";
+  documentId?: string;
+  action?: "confirm" | "reject" | "cancel";
   groupId?: string;
   vendorName?: string;
   amount?: number;
@@ -171,14 +172,28 @@ export async function PATCH(request: Request) {
 
   const workspaceId = body.workspaceId?.trim();
   const candidateId = body.candidateId?.trim();
-  if (!workspaceId || !candidateId || !body.action) {
-    return badRequest("workspaceId, candidateId, and action are required.");
+  if (!workspaceId || !body.action) {
+    return badRequest("workspaceId and action are required.");
   }
   if (!(await workspaceGuard(workspaceId, userId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const supabase = supabaseService();
+
+  if (body.action === "cancel") {
+    const documentId = body.documentId?.trim();
+    if (!documentId) return badRequest("documentId is required for cancel.");
+    const { error } = await supabase
+      .from("documents")
+      .update({ parse_status: "failed", parse_error: "Cancelled by user" })
+      .eq("id", documentId)
+      .eq("workspace_id", workspaceId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (!candidateId) return badRequest("candidateId is required.");
 
   if (body.action === "reject") {
     const { error } = await supabase
