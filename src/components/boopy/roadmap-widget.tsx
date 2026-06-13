@@ -135,19 +135,27 @@ export function BoopyRoadmapWidget() {
       setFeedbackError("Sign in to submit feedback.");
       return;
     }
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      setFeedbackError("Sign in to submit feedback.");
+      return;
+    }
     setFeedbackSubmitting(true);
     setFeedbackError(null);
-    const title = text.length > 60 ? text.slice(0, 57) + "…" : text;
-    const { error } = await supabase.from("roadmap_items").insert({
-      title,
-      description: text,
-      feature_status: "feedback",
-      is_published: false,
-      sort_order: 0,
+    const res = await fetch("/api/roadmap/feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ text }),
     });
     setFeedbackSubmitting(false);
-    if (error) {
-      setFeedbackError(error.message);
+    if (!res.ok) {
+      const p = (await res.json().catch(() => ({}))) as { error?: string };
+      setFeedbackError(p.error ?? "Failed to submit. Try again.");
       return;
     }
     setFeedbackText("");
