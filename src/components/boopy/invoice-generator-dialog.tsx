@@ -1,8 +1,18 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileImage,
+  FileSpreadsheet,
+  FileText,
+  Search,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { InvoiceDocument } from "@/components/boopy/invoice-document";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { generateInvoiceExcel } from "@/lib/invoice/generate-excel";
+import { billingMonths } from "@/lib/invoice/types";
 import type { InvoiceDetails, InvoiceLineItem, InvoiceSummary } from "@/lib/invoice/types";
 import { calculateTotalsByCurrency, formatCurrency } from "@/lib/reports/spend";
 import { cn } from "@/lib/utils";
@@ -39,14 +50,14 @@ type SubscriptionRow = {
 };
 
 type GroupRow = { id: string; name: string };
+type ExportFormat = "xlsx" | "pdf" | "png";
 
 function first<T>(v: T | T[] | null | undefined): T | null {
   if (!v) return null;
   return Array.isArray(v) ? (v[0] ?? null) : v;
 }
 
-function toMonthly(amount: number, cadence: Cadence, endDate: string | null): number {
-  if (endDate) return 0;
+function toMonthlyRate(amount: number, cadence: Cadence): number {
   if (cadence === "yearly") return amount / 12;
   if (cadence === "quarterly") return amount / 3;
   return amount;
@@ -62,6 +73,17 @@ function autoInvoiceNumber(): string {
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function firstOfMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function lastOfMonth(): string {
+  const d = new Date();
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  return last.toISOString().slice(0, 10);
 }
 
 function netDueDate(days = 30): string {
@@ -91,7 +113,7 @@ function StepIndicator({ step, total }: { step: number; total: number }) {
   );
 }
 
-// ── Field component ────────────────────────────────────────────────────────────
+// ── Field ─────────────────────────────────────────────────────────────────────
 
 function Field({
   label,
@@ -111,7 +133,7 @@ function Field({
   );
 }
 
-// ── Step 1: Group Selection ────────────────────────────────────────────────────
+// ── Step 1: Group Selection ───────────────────────────────────────────────────
 
 function StepSelectGroups({
   groups,
@@ -141,8 +163,7 @@ function StepSelectGroups({
           termEndDateYmd: s.end_date,
         }))
       );
-      const currencies = [...new Set(activeSubs.map((s) => s.currency))];
-      return { ...g, groupSubs, activeSubs, totals, currencies };
+      return { ...g, groupSubs, activeSubs, totals };
     });
   }, [groups, subs]);
 
@@ -151,14 +172,14 @@ function StepSelectGroups({
     : groupData;
 
   const allSelected = groups.length > 0 && groups.every((g) => selectedIds.has(g.id));
-  const selectedCount = selectedIds.size;
+
   const selectedTotals = useMemo(() => {
-    const selectedSubs = subs.filter((s) => {
+    const sel = subs.filter((s) => {
       const gId = first(s.groups)?.id;
       return gId && selectedIds.has(gId) && s.status === "active";
     });
     return calculateTotalsByCurrency(
-      selectedSubs.map((s) => ({
+      sel.map((s) => ({
         amount: s.amount,
         cadence: s.cadence,
         status: s.status as "active" | "paused" | "cancelled",
@@ -237,9 +258,6 @@ function StepSelectGroups({
                 ) : (
                   <p className="text-muted-foreground text-xs">—</p>
                 )}
-                {g.currencies.length > 1 && (
-                  <p className="text-muted-foreground text-[10px]">{g.currencies.join(", ")}</p>
-                )}
               </div>
               {selectedIds.has(g.id) && <Check className="text-primary size-3.5 shrink-0" />}
             </button>
@@ -247,10 +265,10 @@ function StepSelectGroups({
         </div>
       )}
 
-      {selectedCount > 0 && (
+      {selectedIds.size > 0 && (
         <div className="bg-accent/40 border-primary/20 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border px-3 py-2">
           <span className="text-primary text-xs font-semibold">
-            {selectedCount} group{selectedCount !== 1 ? "s" : ""} selected
+            {selectedIds.size} group{selectedIds.size !== 1 ? "s" : ""} selected
           </span>
           {selectedTotals.map((t) => (
             <span key={t.currency} className="text-xs font-medium tabular-nums">
@@ -263,7 +281,7 @@ function StepSelectGroups({
   );
 }
 
-// ── Step 2: Invoice Details ────────────────────────────────────────────────────
+// ── Step 2: Invoice Details ───────────────────────────────────────────────────
 
 function StepInvoiceDetails({
   details,
@@ -286,13 +304,14 @@ function StepInvoiceDetails({
               onChange={(e) => onChange({ fromName: e.target.value })}
               placeholder="Acme Agency Inc."
               className="h-8 text-sm"
+              autoComplete="organization"
             />
           </Field>
           <Field label="Address">
             <Textarea
               value={details.fromAddress}
               onChange={(e) => onChange({ fromAddress: e.target.value })}
-              placeholder="123 Agency Street&#10;New York, NY 10001"
+              placeholder={"123 Agency Street\nNew York, NY 10001"}
               rows={2}
               className="resize-none text-sm"
             />
@@ -305,6 +324,7 @@ function StepInvoiceDetails({
                 placeholder="billing@agency.com"
                 className="h-8 text-sm"
                 type="email"
+                autoComplete="email"
               />
             </Field>
             <Field label="Phone">
@@ -313,6 +333,8 @@ function StepInvoiceDetails({
                 onChange={(e) => onChange({ fromPhone: e.target.value })}
                 placeholder="+1-555-0123"
                 className="h-8 text-sm"
+                type="tel"
+                autoComplete="tel"
               />
             </Field>
           </div>
@@ -322,6 +344,7 @@ function StepInvoiceDetails({
               onChange={(e) => onChange({ fromVatNumber: e.target.value })}
               placeholder="GB123456789"
               className="h-8 text-sm"
+              autoComplete="off"
             />
           </Field>
         </div>
@@ -336,13 +359,14 @@ function StepInvoiceDetails({
               onChange={(e) => onChange({ toName: e.target.value })}
               placeholder="Client Company Ltd."
               className="h-8 text-sm"
+              autoComplete="off"
             />
           </Field>
           <Field label="Address">
             <Textarea
               value={details.toAddress}
               onChange={(e) => onChange({ toAddress: e.target.value })}
-              placeholder="456 Client Avenue&#10;San Francisco, CA 94105"
+              placeholder={"456 Client Avenue\nSan Francisco, CA 94105"}
               rows={2}
               className="resize-none text-sm"
             />
@@ -354,6 +378,7 @@ function StepInvoiceDetails({
               placeholder="accounts@client.com"
               className="h-8 text-sm"
               type="email"
+              autoComplete="off"
             />
           </Field>
         </div>
@@ -372,6 +397,7 @@ function StepInvoiceDetails({
               value={details.invoiceNumber}
               onChange={(e) => onChange({ invoiceNumber: e.target.value })}
               className="h-8 text-sm"
+              autoComplete="off"
             />
           </Field>
           <Field label="Issue date">
@@ -397,7 +423,8 @@ function StepInvoiceDetails({
               value={details.poNumber}
               onChange={(e) => onChange({ poNumber: e.target.value })}
               placeholder="PO-2026-123"
-              className="h-8 max-w-[200px] text-sm"
+              className="h-8 w-48 text-sm"
+              autoComplete="off"
             />
           </Field>
         </div>
@@ -405,7 +432,45 @@ function StepInvoiceDetails({
 
       <Separator />
 
-      {/* Pricing */}
+      {/* Billing period */}
+      <div>
+        <p className="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase">
+          Billing period
+        </p>
+        <p className="text-muted-foreground mb-3 text-[11px]">
+          The period you are billing for. Subscription costs are prorated automatically.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="From">
+            <Input
+              type="date"
+              value={details.billingFrom}
+              onChange={(e) => onChange({ billingFrom: e.target.value })}
+              className="h-8 text-sm"
+            />
+          </Field>
+          <Field label="To (inclusive)">
+            <Input
+              type="date"
+              value={details.billingTo}
+              onChange={(e) => onChange({ billingTo: e.target.value })}
+              className="h-8 text-sm"
+            />
+          </Field>
+        </div>
+        {details.billingFrom && details.billingTo && (
+          <p className="text-muted-foreground mt-2 text-[11px]">
+            {(() => {
+              const m = billingMonths(details.billingFrom, details.billingTo);
+              return `${m.toFixed(m % 1 === 0 ? 0 : 2)} month${m === 1 ? "" : "s"} — all subscription costs multiplied by this factor`;
+            })()}
+          </p>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Pricing adjustments */}
       <div>
         <p className="text-muted-foreground mb-3 text-xs font-semibold tracking-wide uppercase">
           Pricing adjustments
@@ -415,7 +480,7 @@ function StepInvoiceDetails({
             label="Agency markup %"
             hint="Added on top of each subscription cost. Leave 0 to bill at cost."
           >
-            <div className="relative max-w-[120px]">
+            <div className="relative w-32">
               <Input
                 type="number"
                 min={0}
@@ -423,16 +488,18 @@ function StepInvoiceDetails({
                 step={0.5}
                 value={details.markupPercent}
                 onChange={(e) => onChange({ markupPercent: parseFloat(e.target.value) || 0 })}
-                className="h-8 pr-6 text-sm"
+                className="h-8 pr-7 text-sm"
               />
-              <span className="text-muted-foreground absolute top-2 right-2.5 text-xs">%</span>
+              <span className="text-muted-foreground pointer-events-none absolute top-2 right-2.5 text-xs">
+                %
+              </span>
             </div>
           </Field>
           <Field
             label="Tax rate %"
             hint="Applied to the total after markup. Leave 0 for tax-exempt."
           >
-            <div className="relative max-w-[120px]">
+            <div className="relative w-32">
               <Input
                 type="number"
                 min={0}
@@ -440,9 +507,11 @@ function StepInvoiceDetails({
                 step={0.5}
                 value={details.taxPercent}
                 onChange={(e) => onChange({ taxPercent: parseFloat(e.target.value) || 0 })}
-                className="h-8 pr-6 text-sm"
+                className="h-8 pr-7 text-sm"
               />
-              <span className="text-muted-foreground absolute top-2 right-2.5 text-xs">%</span>
+              <span className="text-muted-foreground pointer-events-none absolute top-2 right-2.5 text-xs">
+                %
+              </span>
             </div>
           </Field>
         </div>
@@ -450,7 +519,6 @@ function StepInvoiceDetails({
 
       <Separator />
 
-      {/* Notes */}
       <Field label="Payment terms / notes">
         <Textarea
           value={details.notes}
@@ -464,7 +532,7 @@ function StepInvoiceDetails({
   );
 }
 
-// ── Step 3: Preview & Download ─────────────────────────────────────────────────
+// ── Step 3: Preview & Download ────────────────────────────────────────────────
 
 function StepPreview({
   details,
@@ -472,177 +540,75 @@ function StepPreview({
   summaries,
   onDownload,
   downloading,
+  format,
+  setFormat,
 }: {
   details: InvoiceDetails;
   lineItems: InvoiceLineItem[];
   summaries: InvoiceSummary[];
   onDownload: () => void;
   downloading: boolean;
+  format: ExportFormat;
+  setFormat: (f: ExportFormat) => void;
 }) {
-  const showMarkup = details.markupPercent > 0;
-
-  const byGroup = useMemo(() => {
-    const map = new Map<string, { name: string; items: InvoiceLineItem[] }>();
-    for (const item of lineItems) {
-      if (!map.has(item.groupId)) map.set(item.groupId, { name: item.groupName, items: [] });
-      map.get(item.groupId)!.items.push(item);
-    }
-    return [...map.values()];
-  }, [lineItems]);
+  const FORMATS: { key: ExportFormat; label: string; icon: React.ReactNode }[] = [
+    { key: "xlsx", label: "Excel (.xlsx)", icon: <FileSpreadsheet className="size-3.5" /> },
+    { key: "pdf", label: "PDF (A4)", icon: <FileText className="size-3.5" /> },
+    { key: "png", label: "Image (PNG)", icon: <FileImage className="size-3.5" /> },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Invoice header preview */}
-      <div className="bg-muted/40 grid gap-4 rounded-xl px-4 py-3 sm:grid-cols-2">
-        <div className="space-y-0.5">
-          <p className="text-[11px] font-semibold tracking-wide text-[#6d5df6] uppercase">From</p>
-          <p className="text-sm font-semibold">{details.fromName || "—"}</p>
-          {details.fromAddress && (
-            <p className="text-muted-foreground text-xs whitespace-pre-wrap">
-              {details.fromAddress}
-            </p>
-          )}
-          {details.fromEmail && (
-            <p className="text-muted-foreground text-xs">{details.fromEmail}</p>
-          )}
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-            Bill To
-          </p>
-          <p className="text-sm font-semibold">{details.toName || "—"}</p>
-          {details.toAddress && (
-            <p className="text-muted-foreground text-xs whitespace-pre-wrap">{details.toAddress}</p>
-          )}
-          {details.toEmail && <p className="text-muted-foreground text-xs">{details.toEmail}</p>}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <Badge variant="outline" className="gap-1 font-mono">
-          {details.invoiceNumber}
-        </Badge>
-        {details.issueDate && (
-          <span className="text-muted-foreground">
-            Issued:{" "}
-            <span className="text-foreground font-medium">
-              {new Date(details.issueDate + "T00:00:00Z").toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                timeZone: "UTC",
-              })}
-            </span>
-          </span>
-        )}
-        {details.dueDate && (
-          <span className="text-muted-foreground">
-            Due:{" "}
-            <span className="text-foreground font-medium">
-              {new Date(details.dueDate + "T00:00:00Z").toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                timeZone: "UTC",
-              })}
-            </span>
-          </span>
-        )}
-      </div>
-
-      {/* Line items */}
-      {byGroup.map(({ name, items }) => (
-        <div key={name} className="overflow-hidden rounded-xl border">
-          <div className="bg-muted/50 border-b px-3 py-1.5">
-            <p className="text-xs font-semibold">{name}</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[480px] text-xs">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-muted-foreground px-3 py-2 text-left font-medium">Service</th>
-                  <th className="text-muted-foreground px-3 py-2 text-left font-medium">Cycle</th>
-                  <th className="text-muted-foreground px-3 py-2 text-right font-medium">
-                    Unit Cost
-                  </th>
-                  {showMarkup && (
-                    <th className="text-muted-foreground px-3 py-2 text-right font-medium">
-                      +{details.markupPercent}%
-                    </th>
-                  )}
-                  <th className="text-muted-foreground px-3 py-2 text-right font-medium">Total</th>
-                  <th className="text-muted-foreground px-3 py-2 text-left font-medium">Cur.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b last:border-0">
-                    <td className="px-3 py-2 font-medium">{item.vendorName}</td>
-                    <td className="text-muted-foreground px-3 py-2 capitalize">{item.cadence}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {formatCurrency(item.unitAmount, item.currency)}
-                    </td>
-                    {showMarkup && (
-                      <td className="text-muted-foreground px-3 py-2 text-right tabular-nums">
-                        +{formatCurrency(item.markupAmount, item.currency)}
-                      </td>
-                    )}
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                      {formatCurrency(item.totalAmount, item.currency)}
-                    </td>
-                    <td className="text-muted-foreground px-3 py-2">{item.currency}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
-
-      {/* Totals */}
-      <div className="border-primary/20 bg-accent/20 space-y-1.5 rounded-xl border px-4 py-3">
-        {summaries.map((s) => (
-          <div key={s.currency} className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal ({s.currency})</span>
-              <span className="tabular-nums">{formatCurrency(s.subtotal, s.currency)}</span>
-            </div>
-            {details.taxPercent > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Tax ({details.taxPercent}%)</span>
-                <span className="tabular-nums">{formatCurrency(s.taxAmount, s.currency)}</span>
-              </div>
+      {/* Format picker */}
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground text-xs font-medium">Export as:</span>
+        {FORMATS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFormat(f.key)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+              format === f.key
+                ? "border-primary bg-accent text-primary font-medium"
+                : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
             )}
-            <div className="border-primary/20 flex items-center justify-between border-t pt-1">
-              <span className="font-semibold">Total {s.currency}</span>
-              <span className="text-primary font-heading text-base font-bold tabular-nums">
-                {formatCurrency(s.total, s.currency)}
-              </span>
-            </div>
-          </div>
+          >
+            {f.icon}
+            {f.label}
+          </button>
         ))}
       </div>
 
-      {details.notes.trim() && (
-        <p className="text-muted-foreground text-xs">
-          <span className="text-foreground font-medium">Notes: </span>
-          {details.notes}
-        </p>
-      )}
+      {/* Hidden full-resolution element for html2canvas capture */}
+      <div
+        aria-hidden
+        style={{ position: "fixed", left: "-9999px", top: 0, pointerEvents: "none", zIndex: -1 }}
+        id="invoice-document-capture"
+      >
+        <InvoiceDocument details={details} lineItems={lineItems} summaries={summaries} />
+      </div>
 
-      {/* Download CTA */}
+      {/* Visible preview — zoom affects layout correctly, no gap issues */}
+      <div className="rounded-xl border bg-gray-100 p-3">
+        <div style={{ zoom: "62%" }}>
+          <InvoiceDocument details={details} lineItems={lineItems} summaries={summaries} />
+        </div>
+      </div>
+
       <Button
         size="lg"
-        className="mt-2 w-full gap-2 shadow-[0_4px_14px_rgba(109,93,246,0.25)]"
+        className="w-full gap-2 shadow-[0_4px_14px_rgba(109,93,246,0.25)]"
         disabled={downloading}
         onClick={onDownload}
       >
         {downloading ? (
-          <>Preparing…</>
+          "Preparing…"
         ) : (
           <>
             <Download className="size-4" />
-            Download Invoice (.xlsx)
+            Download{" "}
+            {format === "xlsx" ? "Excel (.xlsx)" : format === "pdf" ? "PDF" : "Image (PNG)"}
           </>
         )}
       </Button>
@@ -650,7 +616,61 @@ function StepPreview({
   );
 }
 
-// ── Main Dialog ────────────────────────────────────────────────────────────────
+// ── Build line items ──────────────────────────────────────────────────────────
+
+function buildLineItems(
+  subs: SubscriptionRow[],
+  selectedIds: Set<string>,
+  markupPercent: number,
+  billingFrom: string,
+  billingTo: string
+): InvoiceLineItem[] {
+  const qty = billingMonths(billingFrom, billingTo);
+  const markup = markupPercent / 100;
+
+  return subs
+    .filter((s) => {
+      const gId = first(s.groups)?.id;
+      return gId && selectedIds.has(gId) && s.status === "active";
+    })
+    .map((s) => {
+      const g = first(s.groups)!;
+      const raw = Number(s.amount) || 0;
+      const monthly = toMonthlyRate(raw, s.cadence);
+      const markupAmt = monthly * markup;
+      const unitTotal = monthly + markupAmt;
+      const lineTotal = unitTotal * qty;
+      return {
+        id: s.id,
+        groupId: g.id,
+        groupName: g.name,
+        vendorName: s.vendor_name,
+        category: s.category,
+        cadence: s.cadence,
+        renewalDate: s.renewal_date,
+        unitAmount: monthly,
+        currency: s.currency.toUpperCase(),
+        markupPercent,
+        markupAmount: markupAmt,
+        unitTotal,
+        quantity: qty,
+        lineTotal,
+      };
+    });
+}
+
+function buildSummaries(items: InvoiceLineItem[], taxPercent: number): InvoiceSummary[] {
+  const byC = new Map<string, number>();
+  for (const item of items) {
+    byC.set(item.currency, (byC.get(item.currency) ?? 0) + item.lineTotal);
+  }
+  return [...byC.entries()].map(([currency, subtotal]) => {
+    const taxAmount = subtotal * (taxPercent / 100);
+    return { currency, subtotal, taxAmount, total: subtotal + taxAmount };
+  });
+}
+
+// ── Main Dialog ───────────────────────────────────────────────────────────────
 
 export function InvoiceGeneratorDialog({
   open,
@@ -665,7 +685,7 @@ export function InvoiceGeneratorDialog({
 }) {
   const [step, setStep] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [details, setDetails] = useState<InvoiceDetails>({
+  const [details, setDetails] = useState<InvoiceDetails>(() => ({
     fromName: "",
     fromAddress: "",
     fromEmail: "",
@@ -677,11 +697,14 @@ export function InvoiceGeneratorDialog({
     invoiceNumber: autoInvoiceNumber(),
     issueDate: todayStr(),
     dueDate: netDueDate(30),
+    billingFrom: firstOfMonth(),
+    billingTo: lastOfMonth(),
     poNumber: "",
     markupPercent: 0,
     taxPercent: 0,
     notes: "Net 30 — Payment due within 30 days of invoice date.",
-  });
+  }));
+  const [format, setFormat] = useState<ExportFormat>("xlsx");
   const [downloading, setDownloading] = useState(false);
 
   // Reset on open
@@ -689,31 +712,23 @@ export function InvoiceGeneratorDialog({
     if (open) {
       setStep(0);
       setSelectedIds(new Set());
-      setDetails((d) => ({ ...d, invoiceNumber: autoInvoiceNumber() }));
+      setDetails((d) => ({
+        ...d,
+        invoiceNumber: autoInvoiceNumber(),
+        issueDate: todayStr(),
+        dueDate: netDueDate(30),
+        billingFrom: firstOfMonth(),
+        billingTo: lastOfMonth(),
+        toName: "",
+      }));
     }
   }, [open]);
-
-  // Auto-fill "Bill To" from first selected group name
-  useEffect(() => {
-    if (selectedIds.size === 1) {
-      const gId = [...selectedIds][0]!;
-      const g = groups.find((g) => g.id === gId);
-      if (g && !details.toName) {
-        setDetails((d) => ({ ...d, toName: g.name }));
-      }
-    }
-  }, [selectedIds, groups, details.toName]);
 
   function toggleGroup(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        // Clear auto-filled toName if it was from this group
-        const g = groups.find((g) => g.id === id);
-        if (g && details.toName === g.name) {
-          setDetails((d) => ({ ...d, toName: "" }));
-        }
       } else {
         next.add(id);
       }
@@ -722,73 +737,94 @@ export function InvoiceGeneratorDialog({
   }
 
   function toggleAll() {
-    if (selectedIds.size === groups.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(groups.map((g) => g.id)));
-    }
+    setSelectedIds((prev) =>
+      prev.size === groups.length ? new Set() : new Set(groups.map((g) => g.id))
+    );
   }
 
-  // Build line items from selected groups
-  const lineItems = useMemo((): InvoiceLineItem[] => {
-    const markup = details.markupPercent / 100;
-    return subs
-      .filter((s) => {
-        const gId = first(s.groups)?.id;
-        return gId && selectedIds.has(gId) && s.status === "active";
-      })
-      .map((s) => {
-        const g = first(s.groups)!;
-        const unit = Number(s.amount) || 0;
-        const markupAmt = unit * markup;
-        const total = unit + markupAmt;
-        return {
-          id: s.id,
-          groupId: g.id,
-          groupName: g.name,
-          vendorName: s.vendor_name,
-          category: s.category,
-          cadence: s.cadence,
-          renewalDate: s.renewal_date,
-          unitAmount: unit,
-          currency: s.currency.toUpperCase(),
-          markupPercent: details.markupPercent,
-          markupAmount: markupAmt,
-          totalAmount: total,
-        };
-      });
-  }, [subs, selectedIds, details.markupPercent]);
+  const lineItems = useMemo(
+    () =>
+      buildLineItems(
+        subs,
+        selectedIds,
+        details.markupPercent,
+        details.billingFrom,
+        details.billingTo
+      ),
+    [subs, selectedIds, details.markupPercent, details.billingFrom, details.billingTo]
+  );
 
-  // Build per-currency summaries
-  const summaries = useMemo((): InvoiceSummary[] => {
-    const byC = new Map<string, number>();
-    for (const item of lineItems) {
-      byC.set(item.currency, (byC.get(item.currency) ?? 0) + item.totalAmount);
-    }
-    return [...byC.entries()].map(([currency, subtotal]) => {
-      const taxAmount = subtotal * (details.taxPercent / 100);
-      return { currency, subtotal, taxAmount, total: subtotal + taxAmount };
-    });
-  }, [lineItems, details.taxPercent]);
+  const summaries = useMemo(
+    () => buildSummaries(lineItems, details.taxPercent),
+    [lineItems, details.taxPercent]
+  );
 
-  function handleDownload() {
+  const handleDownload = useCallback(async () => {
     setDownloading(true);
     try {
-      generateInvoiceExcel(details, lineItems, summaries);
+      if (format === "xlsx") {
+        generateInvoiceExcel(details, lineItems, summaries);
+      } else {
+        const el = document.getElementById("invoice-document-capture");
+        if (!el) return;
+        const html2canvas = (await import("html2canvas")).default;
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        });
+
+        if (format === "png") {
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Invoice-${details.invoiceNumber || "export"}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }, "image/png");
+        } else {
+          // PDF via pdf-lib
+          const { PDFDocument } = await import("pdf-lib");
+          const pdfDoc = await PDFDocument.create();
+          // A4 at 72dpi: 595.28 × 841.89 pts
+          const page = pdfDoc.addPage([595.28, 841.89]);
+          const imgData = canvas.toDataURL("image/png");
+          const pngImage = await pdfDoc.embedPng(imgData);
+          const { width: iw, height: ih } = pngImage.scale(1);
+          // Fit to A4 width
+          const scale = 595.28 / iw;
+          const scaledH = ih * scale;
+          page.drawImage(pngImage, {
+            x: 0,
+            y: Math.max(0, 841.89 - scaledH),
+            width: 595.28,
+            height: Math.min(scaledH, 841.89),
+          });
+          const pdfBytes = await pdfDoc.save();
+          const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Invoice-${details.invoiceNumber || "export"}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }
     } finally {
       setDownloading(false);
     }
-  }
+  }, [format, details, lineItems, summaries]);
 
   const canProceedStep0 = selectedIds.size > 0;
-  const canProceedStep1 = details.fromName.trim() && details.toName.trim();
-
+  const canProceedStep1 = details.fromName.trim().length > 0 && details.toName.trim().length > 0;
   const STEPS = ["Select groups", "Invoice details", "Preview & download"];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(90dvh,48rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
-        {/* Header */}
+      <DialogContent className="flex max-h-[min(92dvh,52rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="shrink-0 border-b px-5 pt-5 pb-4">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
@@ -802,7 +838,6 @@ export function InvoiceGeneratorDialog({
           </div>
         </DialogHeader>
 
-        {/* Body */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {step === 0 && (
             <StepSelectGroups
@@ -826,11 +861,12 @@ export function InvoiceGeneratorDialog({
               summaries={summaries}
               onDownload={handleDownload}
               downloading={downloading}
+              format={format}
+              setFormat={setFormat}
             />
           )}
         </div>
 
-        {/* Footer navigation */}
         <div className="shrink-0 border-t px-5 py-3">
           <div className="flex items-center justify-between gap-3">
             <Button
@@ -848,7 +884,6 @@ export function InvoiceGeneratorDialog({
                 </>
               )}
             </Button>
-
             {step < 2 && (
               <Button
                 size="sm"
@@ -858,13 +893,6 @@ export function InvoiceGeneratorDialog({
               >
                 {step === 1 ? "Preview" : "Next"}
                 <ChevronRight className="size-3.5" />
-              </Button>
-            )}
-
-            {step === 2 && (
-              <Button size="sm" variant="outline" onClick={() => setStep(1)} className="gap-1.5">
-                <ChevronLeft className="size-3.5" />
-                Edit details
               </Button>
             )}
           </div>
