@@ -375,7 +375,7 @@ function BoopyAssistantChatPanel({
   }, [setMessages, setInput, attachments]);
 
   return (
-    <div className="pointer-events-auto flex h-full flex-col">
+    <div className="pointer-events-auto flex min-h-0 flex-1 flex-col">
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center gap-2 border-b bg-white/70 px-3 py-2.5 backdrop-blur">
         {view === "chat" ? (
@@ -472,7 +472,7 @@ function BoopyAssistantChatPanel({
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="pointer-events-auto flex flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-3"
+            className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-3"
           >
             {messages.map((m) => {
               const text = messageBodyText(m);
@@ -685,7 +685,7 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
 
       <div className="pointer-events-none fixed right-[max(0.75rem,env(safe-area-inset-right))] bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-50 flex flex-col items-end gap-3 sm:right-5 sm:bottom-5 md:right-6 md:bottom-6">
         {open ? (
-          <div className="bg-background border-border animate-panel-in pointer-events-auto relative flex max-h-[min(34rem,72dvh)] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border shadow-xl">
+          <div className="bg-background border-border animate-panel-in pointer-events-auto relative flex h-[min(34rem,72dvh)] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border shadow-xl">
             {showLoading ? (
               <div className="flex flex-1 items-center justify-center gap-2 px-3 py-10 text-sm">
                 <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
