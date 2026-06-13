@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Loader2, Map as MapIcon } from "lucide-react";
+import { ExternalLink, Loader2, Map as MapIcon, Send } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { safeExternalHref } from "@/lib/roadmap/safe-external-url";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -21,6 +22,7 @@ type RoadmapItemRow = {
   title: string;
   description: string | null;
   feature_status: string;
+  progress_status: string | null;
   link_url: string | null;
   sort_order: number;
 };
@@ -41,6 +43,25 @@ const STATUS_ORDER: Record<RoadmapFeatureStatus, number> = {
 
 const STATUSES = Object.keys(STATUS_ORDER) as RoadmapFeatureStatus[];
 
+const PROGRESS_BADGE: Record<string, { label: string; className: string }> = {
+  planned: {
+    label: "Planned",
+    className: "bg-muted text-muted-foreground",
+  },
+  "in-progress": {
+    label: "In progress",
+    className: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  },
+  doing: {
+    label: "Doing",
+    className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  },
+  done: {
+    label: "Done",
+    className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  },
+};
+
 function isRoadmapStatus(value: string): value is RoadmapFeatureStatus {
   return (STATUSES as string[]).includes(value);
 }
@@ -60,6 +81,11 @@ export function BoopyRoadmapWidget() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     const supabase = getSupabaseBrowser();
     if (!supabase) {
@@ -71,7 +97,7 @@ export function BoopyRoadmapWidget() {
     setLoadError(null);
     const { data, error } = await supabase
       .from("roadmap_items")
-      .select("id,title,description,feature_status,link_url,sort_order")
+      .select("id,title,description,feature_status,progress_status,link_url,sort_order")
       .eq("is_published", true);
     setLoading(false);
     if (error) {
@@ -101,12 +127,41 @@ export function BoopyRoadmapWidget() {
     })).filter((section) => section.items.length > 0);
   }, [rows]);
 
+  async function submitFeedback() {
+    const text = feedbackText.trim();
+    if (!text) return;
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      setFeedbackError("Sign in to submit feedback.");
+      return;
+    }
+    setFeedbackSubmitting(true);
+    setFeedbackError(null);
+    const title = text.length > 60 ? text.slice(0, 57) + "…" : text;
+    const { error } = await supabase.from("roadmap_items").insert({
+      title,
+      description: text,
+      feature_status: "feedback",
+      is_published: false,
+      sort_order: 0,
+    });
+    setFeedbackSubmitting(false);
+    if (error) {
+      setFeedbackError(error.message);
+      return;
+    }
+    setFeedbackText("");
+    setFeedbackSent(true);
+    setTimeout(() => setFeedbackSent(false), 4000);
+  }
+
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (next) {
       void load();
     } else {
       setLoadError(null);
+      setFeedbackError(null);
     }
   }
 
@@ -114,22 +169,21 @@ export function BoopyRoadmapWidget() {
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
-        className="bg-background/95 pointer-events-auto shadow-md backdrop-blur-sm"
+        className="text-muted-foreground gap-1.5 px-2"
         onClick={() => handleOpenChange(true)}
         aria-label="Open product roadmap"
       >
         <MapIcon className="size-4" />
-        Roadmap
+        <span className="hidden sm:inline">Roadmap</span>
       </Button>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-h-[min(32rem,85dvh)] gap-4 overflow-y-auto sm:max-w-md">
+        <DialogContent className="max-h-[min(36rem,85dvh)] gap-4 overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Feature roadmap</DialogTitle>
             <DialogDescription>
-              Status and links from our team. Entries are managed in the database; optional links
-              open blog posts or marketing pages in a new tab.
+              What we&apos;ve shipped, what&apos;s coming, and what we&apos;re considering.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-5 text-sm">
@@ -154,18 +208,18 @@ export function BoopyRoadmapWidget() {
             {!loading && !loadError && rows.length === 0 ? (
               <p className="text-muted-foreground">No roadmap entries yet. Check back soon.</p>
             ) : null}
-            {!loading && !loadError && grouped.length === 0 && rows.length > 0 ? (
-              <p className="text-muted-foreground">No entries match the roadmap format.</p>
-            ) : null}
             {grouped.map((section) => (
               <div key={section.status}>
                 <p className="text-foreground mb-2 font-medium">{section.title}</p>
                 <ul className="space-y-3">
                   {section.items.map((item) => {
                     const href = safeExternalHref(item.link_url);
+                    const badge = item.progress_status
+                      ? PROGRESS_BADGE[item.progress_status]
+                      : null;
                     return (
                       <li key={item.id} className="text-muted-foreground list-none">
-                        <div className="flex flex-wrap items-start gap-x-2 gap-y-0.5">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           {href ? (
                             <a
                               href={href}
@@ -179,6 +233,13 @@ export function BoopyRoadmapWidget() {
                           ) : (
                             <span className="text-foreground font-medium">{item.title}</span>
                           )}
+                          {badge ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
+                            >
+                              {badge.label}
+                            </span>
+                          ) : null}
                         </div>
                         {item.description?.trim() ? (
                           <p className="mt-1 text-[13px] leading-snug whitespace-pre-wrap">
@@ -191,6 +252,46 @@ export function BoopyRoadmapWidget() {
                 </ul>
               </div>
             ))}
+
+            {/* Feedback section */}
+            <div className="border-t pt-4">
+              <p className="text-foreground mb-1 font-medium">Share your feedback</p>
+              <p className="text-muted-foreground mb-3 text-[13px]">
+                Got a feature request or suggestion? Let us know.
+              </p>
+              {feedbackSent ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300">
+                  Thanks for your feedback! We&apos;ll review it soon.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="What would make Boopy better for you?"
+                    rows={3}
+                    className="resize-none text-sm"
+                    disabled={feedbackSubmitting}
+                  />
+                  {feedbackError ? (
+                    <p className="text-destructive text-xs">{feedbackError}</p>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    disabled={!feedbackText.trim() || feedbackSubmitting}
+                    onClick={() => void submitFeedback()}
+                    className="gap-1.5"
+                  >
+                    {feedbackSubmitting ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Send className="size-3.5" />
+                    )}
+                    {feedbackSubmitting ? "Sending…" : "Send feedback"}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

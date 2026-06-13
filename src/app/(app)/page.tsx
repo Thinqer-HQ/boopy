@@ -16,7 +16,6 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
 import { GoogleIntegrationButtons } from "@/components/boopy/google-integration-buttons";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
@@ -33,7 +32,6 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePrimaryWorkspace } from "@/hooks/use-primary-workspace";
-import { getBoopyEmotionState } from "@/lib/boopy/emotion-state";
 import { calculateTotalsByCurrency, formatCurrency, toMonthlyAmount } from "@/lib/reports/spend";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
@@ -81,16 +79,24 @@ function GroupCard({
   const color = GROUP_COLORS[colorIndex % GROUP_COLORS.length] ?? GROUP_COLORS[0];
   const top = buckets[0];
   return (
-    <Link href={`/subscriptions?group=${groupId}`} className="cursor-pointer">
-      <Card className="overflow-hidden p-0 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+    <Link href={`/subscriptions?group=${groupId}`} className="h-full cursor-pointer">
+      <Card className="h-full overflow-hidden p-0 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
         <div className="h-1.5 w-full" style={{ background: color }} />
-        <div className="p-4">
+        <div className="flex h-[calc(100%-6px)] flex-col p-4">
           <p className="truncate font-semibold">{name}</p>
           <div className="font-heading mt-2 text-2xl leading-none font-semibold">
             {top ? formatCurrency(top.monthly, top.currency) : "—"}
             <span className="text-muted-foreground text-sm font-normal">/mo</span>
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          {buckets.length > 1 && (
+            <p className="text-muted-foreground mt-0.5 truncate text-[11px]">
+              {buckets
+                .slice(1)
+                .map((b) => `+${formatCurrency(b.monthly, b.currency)} ${b.currency}`)
+                .join(" · ")}
+            </p>
+          )}
+          <p className="text-muted-foreground mt-auto pt-1 text-xs">
             {subCount} subscription{subCount !== 1 ? "s" : ""}
           </p>
         </div>
@@ -287,10 +293,6 @@ export default function AppHome() {
   const primaryYearly = totalsByCurrency[0]?.yearly ?? 0;
   const activeCount = subscriptions.filter((s) => s.status === "active").length;
   const pausedCount = subscriptions.filter((s) => s.status === "paused").length;
-  const heroEmotion = getBoopyEmotionState({
-    inSavingsMode: pausedCount > 0,
-    everythingOnTrack: activeCount > 0,
-  });
 
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -310,12 +312,6 @@ export default function AppHome() {
       {/* ── Hero banner ── */}
       <div className="from-accent to-card border-accent overflow-hidden rounded-3xl border bg-gradient-to-r">
         <div className="flex items-center gap-4 p-5 sm:gap-6 sm:p-7">
-          <BoopyLottieMascot
-            className="relative hidden size-[100px] shrink-0 select-none sm:block"
-            emotion={heroEmotion}
-            reducedMotionBehavior="fallback-image"
-            priority
-          />
           <div className="min-w-0 flex-1">
             <p className="text-primary mb-0.5 text-[11px] font-bold tracking-widest uppercase">
               {today}
@@ -382,27 +378,18 @@ export default function AppHome() {
               <TrendingUp className="text-primary size-4" />
             </CardHeader>
             <CardContent className="pb-4">
-              {totalsByCurrency.length === 0 ? (
-                <div className="font-heading text-primary text-3xl font-semibold">—</div>
-              ) : (
-                <>
-                  <div className="font-heading text-primary text-3xl font-semibold">
-                    {formatCurrency(totalsByCurrency[0]!.monthly, totalsByCurrency[0]!.currency)}
-                  </div>
-                  {totalsByCurrency.length > 1 && (
-                    <div className="mt-1 flex flex-col gap-0">
-                      {totalsByCurrency.slice(1).map((t) => (
-                        <p key={t.currency} className="text-muted-foreground text-xs tabular-nums">
-                          +{formatCurrency(t.monthly, t.currency)} {t.currency}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-muted-foreground mt-0.5 text-xs">
-                    {formatCurrency(totalsByCurrency[0]!.yearly, totalsByCurrency[0]!.currency)}/yr
-                  </p>
-                </>
-              )}
+              <div className="font-heading text-primary text-3xl font-semibold">
+                {totalsByCurrency.length === 0
+                  ? "—"
+                  : formatCurrency(totalsByCurrency[0]!.monthly, totalsByCurrency[0]!.currency)}
+              </div>
+              <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                {totalsByCurrency.length === 0
+                  ? "no active subscriptions"
+                  : totalsByCurrency.length > 1
+                    ? `${formatCurrency(totalsByCurrency[0]!.yearly, totalsByCurrency[0]!.currency)}/yr · +${totalsByCurrency.length - 1} more`
+                    : `${formatCurrency(totalsByCurrency[0]!.yearly, totalsByCurrency[0]!.currency)}/yr`}
+              </p>
             </CardContent>
           </Card>
         </Link>
@@ -438,7 +425,7 @@ export default function AppHome() {
               View all →
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="grid auto-rows-fr grid-cols-2 gap-3 lg:grid-cols-3">
             {groupTotals.slice(0, 5).map((g, i) => (
               <GroupCard
                 key={g.name}

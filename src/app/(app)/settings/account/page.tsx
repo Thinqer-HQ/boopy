@@ -215,7 +215,7 @@ export default function AccountPrivacyPage() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <a
-            href="https://hey.useboopy.com/privacy"
+            href="https://www.useboopy.com/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary text-sm hover:underline"
@@ -224,7 +224,7 @@ export default function AccountPrivacyPage() {
           </a>
           <span className="text-muted-foreground text-sm">·</span>
           <a
-            href="https://hey.useboopy.com/terms"
+            href="https://www.useboopy.com/terms"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary text-sm hover:underline"
@@ -233,7 +233,7 @@ export default function AccountPrivacyPage() {
           </a>
           <span className="text-muted-foreground text-sm">·</span>
           <a
-            href="https://hey.useboopy.com/cookies"
+            href="https://www.useboopy.com/cookies"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary text-sm hover:underline"

@@ -18,7 +18,6 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
 import { DestinationForm } from "@/components/boopy/notifications/destination-form";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
@@ -588,11 +587,6 @@ export default function NotificationsPage() {
           )}
         >
           <div className="flex items-center gap-4 px-4 py-3">
-            <BoopyLottieMascot
-              className="relative hidden size-12 shrink-0 sm:block"
-              emotion={healthy ? "boopy-good" : "boopy-no"}
-              reducedMotionBehavior="fallback-image"
-            />
             <div>
               <p className={cn("font-semibold", healthy ? "text-[#1faa6b]" : "text-destructive")}>
                 {healthy

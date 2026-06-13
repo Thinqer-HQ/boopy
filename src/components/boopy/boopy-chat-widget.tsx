@@ -282,13 +282,13 @@ function BoopyAssistantChatPanel({
     });
   }, []);
 
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
 
   useEffect(() => {
-    if (atBottom && view === "chat") scrollToBottom();
+    if (atBottom && view === "chat") scrollToBottom("instant");
   }, [messages, status, atBottom, view, scrollToBottom]);
 
   const handleScroll = useCallback(() => {
@@ -375,7 +375,7 @@ function BoopyAssistantChatPanel({
   }, [setMessages, setInput, attachments]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="pointer-events-auto flex h-full flex-col">
       {/* ── Header ── */}
       <div className="flex shrink-0 items-center gap-2 border-b bg-white/70 px-3 py-2.5 backdrop-blur">
         {view === "chat" ? (
@@ -428,10 +428,10 @@ function BoopyAssistantChatPanel({
       </div>
 
       {/* ── Body ── */}
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="pointer-events-auto relative flex min-h-0 flex-1 flex-col overflow-hidden">
         {view === "home" ? (
           /* ── Home view ── */
-          <div className="flex flex-1 flex-col items-center gap-4 overflow-y-auto px-4 py-6 text-center">
+          <div className="pointer-events-auto flex flex-1 flex-col items-center gap-4 overflow-y-auto px-4 py-6 text-center">
             <Image
               src={BOOPY_ICON}
               alt="Boopy"
@@ -472,7 +472,7 @@ function BoopyAssistantChatPanel({
           <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-3"
+            className="pointer-events-auto flex flex-1 flex-col gap-2.5 overflow-y-auto px-3 py-3"
           >
             {messages.map((m) => {
               const text = messageBodyText(m);
@@ -558,9 +558,9 @@ function BoopyAssistantChatPanel({
               type="button"
               onClick={() => {
                 setAtBottom(true);
-                scrollToBottom();
+                scrollToBottom("smooth");
               }}
-              className="bg-background border-border text-muted-foreground pointer-events-auto flex h-7 w-7 items-center justify-center rounded-full border shadow-md"
+              className="bg-background border-border text-muted-foreground pointer-events-auto flex h-7 w-7 touch-manipulation items-center justify-center rounded-full border shadow-md"
             >
               <ChevronDown className="h-4 w-4" />
             </button>
@@ -569,7 +569,7 @@ function BoopyAssistantChatPanel({
       </div>
 
       {/* ── Input bar ── */}
-      <form className="shrink-0 border-t p-2.5" onSubmit={handleSubmit}>
+      <form className="pointer-events-auto shrink-0 border-t p-2.5" onSubmit={handleSubmit}>
         {/* File chips */}
         {attachments.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
@@ -750,7 +750,7 @@ export function BoopyChatWidget({ workspaceId }: { workspaceId: string | null })
         <button
           type="button"
           className={cn(
-            "pointer-events-auto relative flex size-[56px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] shadow-[0_8px_24px_rgba(88,71,224,0.38)] transition-shadow hover:shadow-[0_12px_32px_rgba(88,71,224,0.52)]",
+            "pointer-events-auto relative flex size-[56px] shrink-0 touch-manipulation items-center justify-center overflow-hidden rounded-[18px] shadow-[0_8px_24px_rgba(88,71,224,0.38)] transition-shadow hover:shadow-[0_12px_32px_rgba(88,71,224,0.52)]",
             !open && "animate-fab-bob"
           )}
           onClick={() => setOpen((o) => !o)}

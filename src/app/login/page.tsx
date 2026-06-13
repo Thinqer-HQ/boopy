@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { BoopyLottieMascot } from "@/components/boopy/boopy-lottie-mascot";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -151,8 +150,8 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="bg-muted/40 relative hidden flex-col justify-between border-r p-10 lg:flex">
-        <div className="font-heading flex items-center gap-2 text-lg font-semibold">
+      <div className="bg-accent relative hidden flex-col justify-between border-r p-10 lg:flex">
+        <div className="font-heading text-accent-foreground flex items-center gap-2 text-lg font-semibold">
           <Image
             src="/boopy-assets/boopy-icon.png"
             alt=""
@@ -163,25 +162,16 @@ export default function LoginPage() {
           />
           Boopy
         </div>
-        <div className="flex flex-1 items-center justify-center py-6">
-          <div className="relative rounded-3xl border border-black/10 bg-white/70 p-3 shadow-[0_18px_30px_rgba(0,0,0,0.08)]">
-            <BoopyLottieMascot
-              className="relative size-[188px] md:size-[204px]"
-              emotion="boopy-hi"
-              priority
-              reducedMotionBehavior="fallback-image"
-            />
-          </div>
-        </div>
+        <div className="flex-1" />
         <div className="space-y-4">
           <blockquote className="space-y-2">
-            <p className="text-foreground text-lg leading-relaxed">
+            <p className="text-accent-foreground text-lg leading-relaxed">
               Never miss a renewal. Track subscriptions per client, get email and push reminders
               before charges hit.
             </p>
           </blockquote>
-          <div className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Sparkles className="text-primary size-4 shrink-0" />
+          <div className="text-accent-foreground/70 flex items-center gap-2 text-sm">
+            <Sparkles className="text-accent-foreground size-4 shrink-0" />
             Built for agencies and operators
           </div>
         </div>

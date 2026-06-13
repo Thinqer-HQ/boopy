@@ -176,7 +176,7 @@ export default function BillingSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [promotionCode, setPromotionCode] = useState("");
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [featuresOpen, setFeaturesOpen] = useState(true);
 
   // For Pro users: current billing details
   const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null);

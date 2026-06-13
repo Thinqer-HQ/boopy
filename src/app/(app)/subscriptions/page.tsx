@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
+  FileSpreadsheet,
   FileUp,
   LayoutGrid,
   List,
@@ -23,6 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { GoogleIntegrationButtons } from "@/components/boopy/google-integration-buttons";
+import { InvoiceGeneratorDialog } from "@/components/boopy/invoice-generator-dialog";
 import { MissingSupabaseConfig } from "@/components/boopy/missing-supabase-config";
 import { SchemaNotReady } from "@/components/boopy/schema-not-ready";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -130,6 +132,9 @@ export default function SubscriptionsPage() {
   const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
   const [extractHints, setExtractHints] = useState<string[]>([]);
   const receiptInputRef = useRef<HTMLInputElement>(null);
+
+  // Invoice generator
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   // Group management
   const [manageOpen, setManageOpen] = useState(false);
@@ -650,6 +655,10 @@ export default function SubscriptionsPage() {
           <Button variant="outline" size="sm" onClick={() => setManageOpen(true)}>
             <Settings2 className="size-3.5" />
             <span className="hidden sm:inline">Manage groups</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
+            <FileSpreadsheet className="size-3.5" />
+            <span className="hidden sm:inline">Invoice</span>
           </Button>
           <Link href="/documents" className="hidden sm:block">
             <Button variant="outline" size="sm">
@@ -1322,6 +1331,14 @@ export default function SubscriptionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── INVOICE GENERATOR ── */}
+      <InvoiceGeneratorDialog
+        open={invoiceOpen}
+        onOpenChange={setInvoiceOpen}
+        groups={groups}
+        subs={subs}
+      />
     </div>
   );
 }

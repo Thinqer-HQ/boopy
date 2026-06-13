@@ -66,6 +66,9 @@ const envSchema = z.object({
   // Axiom
   AXIOM_TOKEN: requiredNonEmptyInStrict,
   AXIOM_DATASET: requiredNonEmptyInStrict,
+
+  // Admin API
+  BOOPY_ADMIN_SECRET: optionalNonEmpty,
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { BoopyRoadmapWidget } from "@/components/boopy/roadmap-widget";
 import { WorkspaceSettingsDialog } from "@/components/boopy/workspace-settings-dialog";
 import { useWorkspaceBilling } from "@/hooks/use-workspace-billing";
 import { getSupabaseBrowser } from "@/lib/supabase/browser";
@@ -233,6 +234,7 @@ export function AppHeader({ className }: { className?: string }) {
             {billing.plan === "pro" ? "PRO" : "FREE"}
           </Badge>
         </Link>
+        <BoopyRoadmapWidget />
         <button
           type="button"
           className={cn(
@@ -325,21 +327,21 @@ export function AppHeader({ className }: { className?: string }) {
               </DropdownMenuLabel>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://hey.useboopy.com/privacy", "_blank")}
+                onClick={() => window.open("https://www.useboopy.com/privacy", "_blank")}
               >
                 <Scale className="size-4" />
                 Privacy Policy
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://hey.useboopy.com/terms", "_blank")}
+                onClick={() => window.open("https://www.useboopy.com/terms", "_blank")}
               >
                 <Scale className="size-4" />
                 Terms of Service
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://hey.useboopy.com/cookies", "_blank")}
+                onClick={() => window.open("https://www.useboopy.com/cookies", "_blank")}
               >
                 <Scale className="size-4" />
                 Cookie Policy
