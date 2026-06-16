@@ -29,7 +29,8 @@
     "typecheck:marketing": "npm run typecheck --workspace @boopy/marketing",
     "db:push": "supabase db push",
     "db:link": "supabase link",
-    "prepare": "node -e \"try{require('husky').default()}catch(e){process.exit(0)}\""
+    "prepare": "node -e \"try{require('husky').default()}catch(e){process.exit(0)}\"",
+    "postinstall": "node scripts/fix-ajv.js"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,md,json,yml,yaml,css}": [
