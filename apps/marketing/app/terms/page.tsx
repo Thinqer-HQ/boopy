@@ -12,7 +12,7 @@ export default function TermsPage() {
     <div className="legal-body">
       <h1>Terms of Service</h1>
       <p className="legal-meta">
-        Effective Date: June 12, 2026 &nbsp;·&nbsp; Last Updated: June 12, 2026
+        Effective Date: June 12, 2026 &nbsp;·&nbsp; Last Updated: June 15, 2026
       </p>
 
       <p>
@@ -27,7 +27,7 @@ export default function TermsPage() {
       <p>
         Boopy is a subscription-management web app. It lets you track recurring subscriptions,
         receive renewal reminders, organise spend across groups, sync to your calendar, import
-        receipts from your Drive, and ask an AI assistant for subscription advice.
+        receipts from your Google Drive, and ask an AI assistant for subscription advice.
       </p>
 
       <h2>2. Your account</h2>
@@ -67,17 +67,31 @@ export default function TermsPage() {
 
       <h2>4. Subscription plans, pricing, and billing</h2>
 
-      <h3>Free plan</h3>
+      <h3>Free plan — what you get</h3>
       <ul>
-        <li>Up to 30 subscriptions and 3 groups</li>
-        <li>Basic renewal reminders</li>
-        <li>No charge</li>
+        <li>Track up to 3 active subscriptions</li>
+        <li>1 group / cost centre</li>
+        <li>Manual subscription entry</li>
+        <li>Email renewal reminders</li>
+        <li>Basic spending dashboard</li>
+        <li>Multi-currency display</li>
+        <li>No charge, no credit card required</li>
       </ul>
 
-      <h3>Pro plan</h3>
+      <h3>Pro plan — what you get</h3>
       <ul>
+        <li>Everything in the Free plan, plus:</li>
         <li>Unlimited subscriptions and groups</li>
-        <li>All integrations and features</li>
+        <li>Boopy AI Assistant — ask spending questions and get actionable advice</li>
+        <li>Multi-currency tracking with live exchange rates</li>
+        <li>Google Calendar sync (renewals appear as calendar events)</li>
+        <li>Google Drive invoice import</li>
+        <li>Receipt and document scanning</li>
+        <li>Push + email renewal reminders</li>
+        <li>Renewal calendar view</li>
+        <li>Cost allocation across teams and groups</li>
+        <li>Agency invoice generator (Excel export)</li>
+        <li>Priority support</li>
         <li>
           $19/month (introductory price; standard price is $29/month), or $15/month billed annually
           ($180/year)
@@ -87,10 +101,10 @@ export default function TermsPage() {
       <h3>Free trial</h3>
       <ul>
         <li>7-day free trial of the Pro plan</li>
-        <li>A valid payment card is required at sign-up</li>
+        <li>A valid payment card is required when starting the trial</li>
         <li>
-          If you don&apos;t cancel before the trial ends, your card is charged automatically and the
-          subscription begins
+          You will not be charged during the trial. If you don&apos;t cancel before the trial ends,
+          your card is charged automatically and the subscription begins.
         </li>
       </ul>
 
@@ -99,20 +113,20 @@ export default function TermsPage() {
         <li>
           Subscriptions renew automatically at the end of each billing cycle (monthly or annual)
         </li>
-        <li>All payments are processed by Stripe</li>
+        <li>All payments are processed by Paddle (our Merchant of Record)</li>
         <li>
-          Prices are in USD and exclude applicable taxes (VAT, GST, sales tax), which will be added
-          at checkout where required by law
+          Prices are in USD and exclude applicable taxes (VAT, GST, sales tax), which Paddle will
+          add at checkout where required by law
         </li>
         <li>
-          You can switch from monthly to annual at any time; the change is prorated based on the
-          unused portion of your current cycle
+          You can switch from monthly to annual at any time; the change takes effect at the start of
+          the next billing cycle
         </li>
       </ul>
 
       <h3>Failed payments</h3>
       <ul>
-        <li>If a payment fails, we&apos;ll retry over a 14-day window</li>
+        <li>If a payment fails, Paddle will retry over a short window per their standard policy</li>
         <li>During the retry window your account remains on Pro</li>
         <li>
           If all retries fail, your account is downgraded to the Free plan; your data is not deleted
@@ -132,7 +146,7 @@ export default function TermsPage() {
         your trial ended and the first charge went through), you can request a full refund within 15
         days of that first charge. After 15 days, refunds are no longer available. To request a
         refund, email <a href="mailto:support@boopy.app">support@boopy.app</a> within the 15-day
-        window.
+        window. See our <a href="/refund">Refund Policy</a> for full details.
       </div>
 
       <p>
@@ -143,7 +157,7 @@ export default function TermsPage() {
       </p>
       <p>
         <strong>Account deletion.</strong> You can delete your account at any time from Settings →
-        Account &amp; Privacy. Deletion cancels any active Stripe subscription, hard-deletes your
+        Account &amp; Privacy. Deletion cancels any active subscription, hard-deletes your
         subscription, group, and notification data, and removes your auth user. Billing records are
         retained for 7 years as required by tax law. Deletion is irreversible.
       </p>
@@ -151,7 +165,7 @@ export default function TermsPage() {
       <h2>6. Free trial — specific terms</h2>
       <ul>
         <li>One trial per person</li>
-        <li>Card required at sign-up to start the trial</li>
+        <li>Card required when starting the trial</li>
         <li>You will not be charged during the 7-day trial</li>
         <li>You can cancel from Settings → Billing at any time during the trial with no charge</li>
         <li>
@@ -185,7 +199,7 @@ export default function TermsPage() {
 
       <h2>8. Intellectual property</h2>
       <p>
-        Boopy and all its software, design, and content are owned by NAAX TECHNOLOGIES CORP.. We
+        Boopy and all its software, design, and content are owned by NAAX TECHNOLOGIES CORP. We
         grant you a limited, non-exclusive, non-transferable licence to use the Service for your own
         personal or internal business purposes. You retain ownership of all data you enter into the
         Service. You grant us a limited licence to store and process that data solely to provide the
@@ -212,9 +226,9 @@ export default function TermsPage() {
 
       <h2>11. Governing law</h2>
       <p>
-        These Terms are governed by the laws of the Philippines. Any dispute will be subject to the
-        exclusive jurisdiction of the courts of the Philippines, except where applicable consumer
-        protection law provides otherwise.
+        These Terms are governed by the laws of the Republic of the Philippines. Any dispute will be
+        subject to the exclusive jurisdiction of the courts of the Philippines, except where
+        applicable consumer protection law in your country provides otherwise.
       </p>
 
       <h2>12. Changes to these Terms</h2>
@@ -226,7 +240,9 @@ export default function TermsPage() {
 
       <h2>13. Contact</h2>
       <p>
-        <a href="mailto:support@boopy.app">support@boopy.app</a>
+        For any question about these Terms: <a href="mailto:support@boopy.app">support@boopy.app</a>
+        <br />
+        NAAX TECHNOLOGIES CORP., Philippines
       </p>
     </div>
   );

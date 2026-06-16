@@ -82,10 +82,10 @@ export default async function MarketingHomePage() {
               <h1 className="hero-title">{content.heroTitle}</h1>
               <p className="hero-subtitle">{content.heroSubtitle}</p>
               <div className="cta-row">
-                <a href={appUrl} className="btn btn-primary btn-lg">
+                <a href={`${appUrl}/login`} className="btn btn-primary btn-lg">
                   {content.primaryCta.label}
                 </a>
-                <a href={upgradeUrl} className="btn btn-ghost btn-lg">
+                <a href="#pricing" className="btn btn-ghost btn-lg">
                   {content.secondaryCta.label}
                 </a>
               </div>
@@ -278,7 +278,7 @@ export default async function MarketingHomePage() {
               <h2>Ready to stop missing renewals?</h2>
               <p>Join teams and individuals who use Boopy to stay on top of every subscription.</p>
               <div className="cta-row">
-                <a href={appUrl} className="btn btn-primary btn-lg">
+                <a href={`${appUrl}/login`} className="btn btn-primary btn-lg">
                   Get started free
                 </a>
                 <a href={upgradeUrl} className="btn btn-ghost btn-lg">
@@ -318,6 +318,16 @@ export default async function MarketingHomePage() {
                   }}
                 >
                   Terms of Service
+                </a>
+                <a
+                  href="/refund"
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: "var(--text-muted, #888)",
+                    textDecoration: "none",
+                  }}
+                >
+                  Refund Policy
                 </a>
                 <a
                   href="/cookies"

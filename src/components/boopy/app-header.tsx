@@ -98,6 +98,7 @@ export function AppHeader({ className }: { className?: string }) {
   async function signOut() {
     const supabase = getSupabaseBrowser();
     if (!supabase) return;
+    sessionStorage.setItem("boopy_intentional_signout", "1");
     await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
@@ -327,21 +328,21 @@ export function AppHeader({ className }: { className?: string }) {
               </DropdownMenuLabel>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://www.useboopy.com/privacy", "_blank")}
+                onClick={() => window.open("https://www.hey.useboopy.com/privacy", "_blank")}
               >
                 <Scale className="size-4" />
                 Privacy Policy
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://www.useboopy.com/terms", "_blank")}
+                onClick={() => window.open("https://www.hey.useboopy.com/terms", "_blank")}
               >
                 <Scale className="size-4" />
                 Terms of Service
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="gap-2"
-                onClick={() => window.open("https://www.useboopy.com/cookies", "_blank")}
+                onClick={() => window.open("https://www.hey.useboopy.com/cookies", "_blank")}
               >
                 <Scale className="size-4" />
                 Cookie Policy

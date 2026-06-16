@@ -69,6 +69,9 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           <Link href="/terms" style={{ color: "#888", textDecoration: "none" }}>
             Terms of Service
           </Link>
+          <Link href="/refund" style={{ color: "#888", textDecoration: "none" }}>
+            Refund Policy
+          </Link>
           <Link href="/cookies" style={{ color: "#888", textDecoration: "none" }}>
             Cookie Policy
           </Link>

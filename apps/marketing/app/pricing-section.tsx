@@ -8,19 +8,25 @@ const ANNUAL_PRICE = 15; // billed at $180/yr
 const ORIGINAL_PRICE = 29;
 
 const FREE_FEATURES = [
-  "Up to 3 subscriptions",
-  "1 group",
-  "Basic renewal reminders",
-  "Email notifications",
+  "Track up to 3 active subscriptions",
+  "1 group / cost centre",
+  "Manual subscription entry",
+  "Email renewal reminders",
+  "Basic spending dashboard",
+  "Multi-currency display",
 ];
 
 const PRO_FEATURES = [
   "Unlimited subscriptions & groups",
-  "Multi-currency tracking",
-  "Boopy AI Assistant",
-  "Push + email reminders",
+  "Boopy AI Assistant — ask questions & get spending insights",
+  "Multi-currency tracking with live exchange rates",
+  "Google Calendar sync (renewals as calendar events)",
+  "Google Drive invoice import",
   "Receipt & document scanning",
-  "Renewal calendar",
+  "Push + email renewal reminders",
+  "Renewal calendar view",
+  "Cost allocation across teams & groups",
+  "Agency invoice generator (Excel export)",
   "Priority support",
 ];
 
@@ -29,7 +35,7 @@ interface PricingSectionProps {
   upgradeUrl: string;
 }
 
-export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
+export function PricingSection({ appUrl }: PricingSectionProps) {
   const [isAnnual, setIsAnnual] = useState(false);
   const switchRef = useRef<HTMLButtonElement>(null);
 
@@ -108,7 +114,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
           </ul>
           <a
             className="btn btn-ghost"
-            href={appUrl}
+            href={`${appUrl}/login`}
             style={{ width: "100%", justifyContent: "center" }}
           >
             Get started free
@@ -130,6 +136,18 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
               ? `Billed annually at $${ANNUAL_PRICE * 12}/yr — you save $${(MONTHLY_PRICE - ANNUAL_PRICE) * 12}/yr.`
               : "Billed monthly. Cancel anytime."}
           </p>
+          <p
+            style={{
+              fontSize: "0.75rem",
+              color: "rgba(255,255,255,0.6)",
+              marginBottom: "0.5rem",
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}
+          >
+            Everything in Free, plus:
+          </p>
           <ul className="feature-list">
             {PRO_FEATURES.map((f) => (
               <li key={f}>
@@ -142,7 +160,7 @@ export function PricingSection({ appUrl, upgradeUrl }: PricingSectionProps) {
           </ul>
           <a
             className="btn btn-primary"
-            href={upgradeUrl}
+            href={`${appUrl}/login`}
             style={{ width: "100%", justifyContent: "center" }}
           >
             Start free trial
