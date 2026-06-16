@@ -23,7 +23,7 @@
         "backgroundColor": "#6d5df6"
       },
       "package": "com.naax.boopy",
-      "versionCode": 1,
+      "versionCode": 3,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM",
@@ -46,8 +46,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "714f2ee9-88ed-41a7-be31-3e714d393613"
+      },
+      "router": {
+        "origin": false
       }
-    }
+    },
+    "owner": "thinqerhq"
   }
 }
