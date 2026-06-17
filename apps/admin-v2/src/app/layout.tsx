@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Fredoka, Geist_Mono, Manrope } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
+
+import { RefineProviders } from "@/providers/refine-providers";
 
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
 const fredoka = Fredoka({ variable: "--font-fredoka", subsets: ["latin"] });
@@ -17,7 +20,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       lang="en"
       className={`${manrope.variable} ${fredoka.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-svh">{children}</body>
+      <body className="min-h-svh">
+        <Suspense>
+          <RefineProviders>{children}</RefineProviders>
+        </Suspense>
+      </body>
     </html>
   );
 }
