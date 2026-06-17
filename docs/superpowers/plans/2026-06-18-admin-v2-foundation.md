@@ -803,18 +803,20 @@ git commit -m "Add admin_user_directory and admin_alerts views, add workspace_bi
 
 ---
 
-### Task 6: Auth — middleware, login page, callback route, not-authorized page, server-side guard
+### Task 6: Auth — proxy, login page, callback route, not-authorized page, server-side guard
 
 **Files:**
 
-- Create: `apps/admin-v2/middleware.ts`
+- Create: `apps/admin-v2/src/proxy.ts` (this Next.js version renamed `middleware.ts` → `proxy.ts` with an exported `proxy` function, not `middleware` — confirmed against `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md` per AGENTS.md. It must live inside `src/`, at the same level as `src/app/`, not at the project root, since this app uses a `src/` directory — the docs say "or inside `src` if applicable, so that it is located at the same level as `pages` or `app`".)
 - Create: `apps/admin-v2/src/lib/admin-guard.ts`
 - Create: `apps/admin-v2/src/app/login/page.tsx`
 - Create: `apps/admin-v2/src/app/auth/callback/route.ts`
 - Create: `apps/admin-v2/src/app/not-authorized/page.tsx`
 - Test: `apps/admin-v2/src/lib/admin-guard.test.ts`
 
-`middleware.ts` refreshes the Supabase session cookie on every request (the standard `@supabase/ssr` pattern) and redirects unauthenticated requests to `/login`. The actual "is this user an admin" check happens in two places: client-side in the Refine `authProvider` (Task 7, for UI redirects) and server-side in `requireAdmin()` here (used by every Route Handler that performs a write, Tasks 14/17/18/19/20).
+`proxy.ts` refreshes the Supabase session cookie on every request (the standard `@supabase/ssr` pattern) and redirects unauthenticated requests to `/login`. The actual "is this user an admin" check happens in two places: client-side in the Refine `authProvider` (Task 7, for UI redirects) and server-side in `requireAdmin()` here (used by every Route Handler that performs a write, Tasks 14/17/18/19/20).
+
+Also note: `server-only` (used by `admin-guard.ts` and the Supabase server/service clients) throws when resolved outside Next.js's bundler, which breaks plain Vitest runs for any module that imports it. `apps/admin-v2/vitest.config.ts` (Task 3) needs a `resolve.alias` entry mapping `"server-only"` to a one-line stub module (`export {};`) at `apps/admin-v2/src/lib/test/server-only-stub.ts` — add both now if you haven't already, before writing the admin-guard test below.
 
 - [ ] **Step 1: Write the failing test for the pure error-classification logic in admin-guard**
 
@@ -888,14 +890,14 @@ export async function requireAdmin(): Promise<User> {
 Run: `cd apps/admin-v2 && npx vitest run src/lib/admin-guard.test.ts`
 Expected: PASS, 1 test.
 
-- [ ] **Step 5: Create middleware.ts** (session refresh + redirect-to-login gate, mirrors `apps/chat/middleware.ts`)
+- [ ] **Step 5: Create src/proxy.ts** (session refresh + redirect-to-login gate; same logic as `apps/chat/middleware.ts` but renamed per this Next.js version's convention — see the file note above)
 
 ```ts
-// apps/admin-v2/middleware.ts
+// apps/admin-v2/src/proxy.ts
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
@@ -1071,7 +1073,7 @@ Run: `cd apps/admin-v2 && npm run dev`, visit `http://localhost:3003/login`, ent
 - [ ] **Step 10: Commit**
 
 ```bash
-git add apps/admin-v2/middleware.ts apps/admin-v2/src/lib/admin-guard.ts apps/admin-v2/src/lib/admin-guard.test.ts apps/admin-v2/src/app/login apps/admin-v2/src/app/auth apps/admin-v2/src/app/not-authorized
+git add apps/admin-v2/src/proxy.ts apps/admin-v2/src/lib/admin-guard.ts apps/admin-v2/src/lib/admin-guard.test.ts apps/admin-v2/src/app/login apps/admin-v2/src/app/auth apps/admin-v2/src/app/not-authorized
 git commit -m "Add admin-v2 magic-link auth: middleware, login, callback, allowlist gate"
 ```
 
