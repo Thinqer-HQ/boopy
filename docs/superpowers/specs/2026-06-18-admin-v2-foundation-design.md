@@ -173,9 +173,19 @@ fired for that subscription. To make the pause actually stick:
   - **POST (commit)**: re-verifies eligibility server-side (never trusts a client-supplied "eligible" flag), refunds each paid invoice's charge via `stripe.refunds.create`, then immediately cancels the subscription (`stripe.subscriptions.cancel` — not end-of-period, since the user is getting their money back and shouldn't keep access). The webhook's `customer.subscription.deleted` handling flips `plan`/`status` to free automatically.
   - **Partial failure handling**: if any refund fails partway through, stop immediately and do **not** cancel the subscription. Report exactly which charges succeeded and which failed so the failure can be resolved manually. Access must never be revoked while a refund is in a failed or unknown state.
 
-All four billing actions log to `audit_events` with `entity_type: 'workspace_billing'`, `entity_id: workspace_id`, `actor_user_id` = the admin, and action-specific metadata (`old_plan`/`new_plan`, `stripe_subscription_id`, and for refunds, `refunded_charges`, `refunded_total_amount`, `days_since_subscription_start`).
+**Manual override** — for special cases that fall outside the standard 15-day policy (goodwill, escalations, etc.). This extends the same action rather than being a separate one:
 
-UI: all four actions live in a "Billing" panel on the user's detail page. Cancel & Refund is only shown/enabled when the user is currently on Pro and within the 15-day window.
+- An "Use manual override" control on the Cancel & Refund panel reveals a warning banner ("This bypasses the standard 15-day refund policy. Use only for special/manual cases. This action is logged with your admin account.") plus:
+  - A **required reason field** (free text) — mandatory, since this is a deliberate policy exception. Stored in the audit log.
+  - A table of **all payments for this Stripe customer** (`stripe.charges.list({ customer: stripeCustomerId })` or the equivalent paid-invoice listing) — their full lifetime payment history, not just charges tied to the current subscription, since they may have subscribed/cancelled/resubscribed before and the admin needs full context.
+  - Per payment row, a checkbox plus a **manually-editable refund amount** (prefilled with that charge's full amount, editable down for a partial refund). A running total updates as rows are selected.
+- The 15-day eligibility check is skipped entirely in this path.
+- **Commit**: for each selected charge+amount pair, call `stripe.refunds.create({ charge, amount })` — Stripe itself rejects an amount exceeding what's left refundable on that charge, giving free validation. Same partial-failure handling as the standard path: any failed refund call stops everything immediately, the subscription is **not** cancelled, and exact per-charge success/failure is reported. Once all selected refunds succeed, cancel the subscription immediately, same as the standard path.
+- Audit log uses `action: 'admin_cancel_and_refund_override'` (distinct from the standard path's action name) with `metadata: { override: true, reason, refunded_charges, refunded_total_amount }`.
+
+All billing actions log to `audit_events` with `entity_type: 'workspace_billing'`, `entity_id: workspace_id`, `actor_user_id` = the admin, and action-specific metadata (`old_plan`/`new_plan`, `stripe_subscription_id`, and for refunds, `refunded_charges`, `refunded_total_amount`, plus `days_since_subscription_start` for the standard path or `reason` for the override path).
+
+UI: all actions live in a "Billing" panel on the user's detail page. The standard Cancel & Refund is only shown/enabled when the user is currently on Pro and within the 15-day window; the manual override is always available as a secondary, warning-gated option whenever the user has at least one payment on record.
 
 ## Data model changes (new migration)
 
@@ -222,6 +232,11 @@ alter table public.workspace_billing
 - Cancel & Refund: test both eligible (within 15 days of `subscription.start_date`) and
   ineligible (past the window) cases; confirm a simulated partial-refund failure does
   **not** cancel the subscription.
+- Cancel & Refund override: confirm the action is rejected without a reason; confirm a
+  manual amount greater than what's left refundable on a charge is rejected by Stripe;
+  confirm an ineligible (>15 day) subscription can still be refunded via this path; confirm
+  the resulting `audit_events` row has `action: 'admin_cancel_and_refund_override'` and
+  includes the reason.
 
 ## Open questions / explicitly deferred
 
