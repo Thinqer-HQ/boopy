@@ -1,6 +1,6 @@
 import "react-native-url-polyfill/auto";
 import { useEffect } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { Stack } from "expo-router";
 import { SQLiteProvider, type SQLiteDatabase } from "expo-sqlite";
 import * as SplashScreen from "expo-splash-screen";
@@ -9,6 +9,17 @@ import { StatusBar } from "expo-status-bar";
 import { initDB } from "../lib/db";
 import { log } from "../lib/logger";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+
+// Crashlytics is only available in native EAS builds — guard so web/Expo Go don't crash
+let crashlytics: ReturnType<typeof import("@react-native-firebase/crashlytics").default> | null =
+  null;
+if (Platform.OS !== "web") {
+  try {
+    crashlytics = require("@react-native-firebase/crashlytics").default();
+  } catch {
+    // not available in Expo Go — silently skip
+  }
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,6 +48,8 @@ export default function RootLayout() {
         log.error(
           `Unhandled ${isFatal ? "FATAL " : ""}JS error: ${error?.message}\n${error?.stack ?? ""}`
         );
+        crashlytics?.recordError(error);
+        if (isFatal) crashlytics?.log(`FATAL: ${error?.message}`);
         prev?.(error, isFatal);
       });
     }

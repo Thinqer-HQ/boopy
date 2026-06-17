@@ -23,7 +23,7 @@
         "backgroundColor": "#6d5df6"
       },
       "package": "com.naax.boopy",
-      "versionCode": 3,
+      "versionCode": 8,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM",
@@ -39,7 +39,9 @@
           "color": "#6d5df6",
           "icon": "./assets/notification-icon.png"
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics"
     ],
     "experiments": {
       "typedRoutes": true

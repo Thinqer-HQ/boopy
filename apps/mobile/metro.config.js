@@ -12,4 +12,20 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
+// On web, swap expo-sqlite for an in-memory shim so the app loads for UI testing.
+// Native builds are unaffected.
+const originalResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === "web" && moduleName === "expo-sqlite") {
+    return {
+      filePath: path.resolve(projectRoot, "lib/expo-sqlite-web.tsx"),
+      type: "sourceFile",
+    };
+  }
+  if (originalResolveRequest) {
+    return originalResolveRequest(context, moduleName, platform);
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;

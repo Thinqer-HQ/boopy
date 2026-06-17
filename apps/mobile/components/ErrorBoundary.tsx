@@ -1,6 +1,15 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { Platform, View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { log } from "../lib/logger";
+
+let crashlytics: { recordError: (e: Error) => void } | null = null;
+if (Platform.OS !== "web") {
+  try {
+    crashlytics = require("@react-native-firebase/crashlytics").default();
+  } catch {
+    // not available in Expo Go
+  }
+}
 
 interface State {
   error: Error | null;
@@ -15,6 +24,7 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Stat
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     log.error("ErrorBoundary caught:", error.message, info.componentStack);
+    crashlytics?.recordError(error);
   }
 
   reset = () => this.setState({ error: null });
