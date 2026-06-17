@@ -1,4 +1,5 @@
-const API_URL = process.env.BOOPY_API_URL ?? "https://www.useboopy.com";
+// Strip BOM (U+FEFF) that Windows editors/shells sometimes prepend to env var values
+const API_URL = (process.env.BOOPY_API_URL ?? "https://www.useboopy.com").replace(/^﻿/, "");
 const ADMIN_SECRET = process.env.BOOPY_ADMIN_SECRET ?? "";
 
 async function adminFetch<T>(path: string): Promise<T> {
