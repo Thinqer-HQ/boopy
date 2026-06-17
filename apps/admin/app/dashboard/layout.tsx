@@ -39,7 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`nav-item${active ? "active" : ""}`}
+                className={active ? "nav-item active" : "nav-item"}
               >
                 <span style={{ fontSize: "0.85rem" }}>{item.icon}</span>
                 {item.label}
