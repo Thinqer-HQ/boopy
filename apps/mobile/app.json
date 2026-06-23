@@ -15,7 +15,8 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.naax.boopy",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,8 @@
         "backgroundColor": "#6d5df6"
       },
       "package": "com.naax.boopy",
-      "versionCode": 8,
+      "googleServicesFile": "./google-services.json",
+      "versionCode": 10,
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.SCHEDULE_EXACT_ALARM",
